@@ -3,12 +3,13 @@
 import 'package:equatable/equatable.dart';
 
 /// Currency types used in Peru real estate market
+/// Limited to PEN/USD because these dominate Piura property transactions
 enum Currency {
   pen, // Peruvian Soles
   usd; // US Dollars
 
-  /// Currency symbol for display
-  String get symbol {
+  /// Currency symbol for user interface display
+  String get currencySymbol {
     switch (this) {
       case Currency.pen:
         return 'S/';
@@ -17,8 +18,8 @@ enum Currency {
     }
   }
 
-  /// Currency code for API/storage
-  String get code {
+  /// ISO currency code for API and database storage
+  String get isoCurrencyCode {
     switch (this) {
       case Currency.pen:
         return 'PEN';
@@ -27,8 +28,8 @@ enum Currency {
     }
   }
 
-  /// User-friendly currency name
-  String get displayName {
+  /// Localized currency name for user-friendly display
+  String get localizedCurrencyName {
     switch (this) {
       case Currency.pen:
         return 'Soles';
@@ -37,216 +38,298 @@ enum Currency {
     }
   }
 
-  /// Creates Currency from string code
-  static Currency fromCode(String code) {
-    switch (code.toUpperCase()) {
+  /// Creates Currency from ISO code string
+  /// Enables flexible currency parsing from external data sources
+  static Currency fromIsoCode(String currencyCode) {
+    switch (currencyCode.toUpperCase()) {
       case 'PEN':
         return Currency.pen;
       case 'USD':
         return Currency.usd;
       default:
-        throw ArgumentError('Unsupported currency: $code');
+        throw ArgumentError('Unsupported currency code: $currencyCode');
     }
   }
 }
 
-/// Price value object for property pricing in Peru market
+/// Price value object for property pricing in Piura real estate market
 ///
-/// This immutable value object handles property prices with proper
-/// currency support, formatting, and validation for the Peru real estate market.
+/// Encapsulates monetary value because accurate pricing is critical for
+/// property discovery, comparison, and transaction completion. Immutable design
+/// prevents price corruption during property lifecycle and ensures consistent
+/// financial calculations across the platform.
 ///
-/// V1 Scope: Basic price representation with PEN/USD support
+/// V1 Scope: PEN/USD support with Piura market validation
 class Price extends Equatable {
-  /// Price amount
-  final double amount;
+  /// Monetary amount in the specified currency
+  /// Stored as double to handle precise pricing including cents/centimos
+  final double monetaryAmountValue;
 
-  /// Price currency
-  final Currency currency;
+  /// Currency denomination for the monetary amount
+  /// Essential for multi-currency support in Peru real estate transactions
+  final Currency transactionCurrency;
 
-  const Price._({required this.amount, required this.currency});
+  const Price._({
+    required this.monetaryAmountValue,
+    required this.transactionCurrency,
+  });
 
-  /// Creates Price with validation
-  factory Price.create({required double amount, required Currency currency}) {
-    final price = Price._(amount: amount, currency: currency);
+  /// Creates Price with comprehensive validation
+  /// Validation prevents invalid amounts that would break financial calculations
+  factory Price.create({
+    required double monetaryAmountValue,
+    required Currency transactionCurrency,
+  }) {
+    final price = Price._(
+      monetaryAmountValue: monetaryAmountValue,
+      transactionCurrency: transactionCurrency,
+    );
 
-    final violations = price._validate();
-    if (violations.isNotEmpty) {
-      throw PriceException('Invalid price data', violations);
+    final validationErrors = price._validatePriceData();
+    if (validationErrors.isNotEmpty) {
+      throw PriceValidationException('Invalid price data', validationErrors);
     }
 
     return price;
   }
 
-  /// Creates Price from amount and currency code
-  factory Price.fromCode({
-    required double amount,
-    required String currencyCode,
+  /// Creates Price from amount and ISO currency code
+  /// Enables price creation from API responses and external data sources
+  factory Price.createFromCurrencyCode({
+    required double monetaryAmountValue,
+    required String isoCurrencyCode,
   }) {
     return Price.create(
-      amount: amount,
-      currency: Currency.fromCode(currencyCode),
+      monetaryAmountValue: monetaryAmountValue,
+      transactionCurrency: Currency.fromIsoCode(isoCurrencyCode),
     );
   }
 
   /// Creates Price in Peruvian Soles
-  factory Price.inSoles(double amount) {
-    return Price.create(amount: amount, currency: Currency.pen);
+  /// Convenience factory for PEN transactions common in Piura rentals
+  factory Price.createInSoles(double solesAmount) {
+    return Price.create(
+      monetaryAmountValue: solesAmount,
+      transactionCurrency: Currency.pen,
+    );
   }
 
   /// Creates Price in US Dollars
-  factory Price.inDollars(double amount) {
-    return Price.create(amount: amount, currency: Currency.usd);
+  /// Convenience factory for USD transactions common in Piura sales
+  factory Price.createInDollars(double dollarsAmount) {
+    return Price.create(
+      monetaryAmountValue: dollarsAmount,
+      transactionCurrency: Currency.usd,
+    );
   }
 
   // PRICE DISPLAY AND FORMATTING
 
-  /// Gets formatted price for display (e.g., "S/ 350,000" or "US$ 95,000")
-  String getFormattedPrice() {
-    return '${currency.symbol} ${_formatAmount(amount)}';
+  /// Generates formatted price for property listing display
+  /// Format follows Peru market conventions for user recognition
+  String generateFormattedPriceForDisplay() {
+    return '${transactionCurrency.currencySymbol} ${_formatAmountWithThousandsSeparators(monetaryAmountValue)}';
   }
 
-  /// Gets compact price format for cards (e.g., "S/ 350K" or "US$ 95K")
-  String getCompactPrice() {
-    if (amount >= 1000000) {
-      final millions = amount / 1000000;
-      return '${currency.symbol} ${millions.toStringAsFixed(1)}M';
-    } else if (amount >= 1000) {
-      final thousands = amount / 1000;
-      return '${currency.symbol} ${thousands.toStringAsFixed(0)}K';
+  /// Generates compact price format for property cards and mobile display
+  /// Abbreviated format saves space while maintaining readability
+  String generateCompactPriceFormat() {
+    if (monetaryAmountValue >= 1000000) {
+      final millionsAmount = monetaryAmountValue / 1000000;
+      return '${transactionCurrency.currencySymbol} ${millionsAmount.toStringAsFixed(1)}M';
+    } else if (monetaryAmountValue >= 1000) {
+      final thousandsAmount = monetaryAmountValue / 1000;
+      return '${transactionCurrency.currencySymbol} ${thousandsAmount.toStringAsFixed(0)}K';
     } else {
-      return '${currency.symbol} ${amount.toStringAsFixed(0)}';
+      return '${transactionCurrency.currencySymbol} ${monetaryAmountValue.toStringAsFixed(0)}';
     }
   }
 
-  /// Gets price range display (e.g., "S/ 300K - 400K")
-  static String getPriceRangeDisplay(Price minPrice, Price maxPrice) {
-    if (minPrice.currency != maxPrice.currency) {
-      return '${minPrice.getCompactPrice()} - ${maxPrice.getFormattedPrice()}';
+  /// Generates price range display for search filters
+  /// Static method handles mixed currency scenarios appropriately
+  static String generatePriceRangeDisplay(
+    Price minimumPrice,
+    Price maximumPrice,
+  ) {
+    if (minimumPrice.transactionCurrency != maximumPrice.transactionCurrency) {
+      return '${minimumPrice.generateCompactPriceFormat()} - ${maximumPrice.generateFormattedPriceForDisplay()}';
     }
 
-    return '${minPrice.currency.symbol} ${_formatAmount(minPrice.amount)} - ${_formatAmount(maxPrice.amount)}';
+    return '${minimumPrice.transactionCurrency.currencySymbol} ${_formatAmountWithThousandsSeparators(minimumPrice.monetaryAmountValue)} - ${_formatAmountWithThousandsSeparators(maximumPrice.monetaryAmountValue)}';
   }
 
-  /// Gets price with currency name (e.g., "350,000 Soles")
-  String getPriceWithCurrencyName() {
-    return '${_formatAmount(amount)} ${currency.displayName}';
+  /// Generates price with full currency name for formal display
+  /// Used in contracts and formal property documentation
+  String generatePriceWithCurrencyName() {
+    return '${_formatAmountWithThousandsSeparators(monetaryAmountValue)} ${transactionCurrency.localizedCurrencyName}';
   }
 
   // PRICE CALCULATIONS
 
-  /// Calculates price per square meter
-  Price calculatePricePerM2(double areaM2) {
-    if (areaM2 <= 0) {
+  /// Calculates price per square meter for property valuation
+  /// Critical metric for Peru real estate comparison and market analysis
+  Price calculatePricePerSquareMeter(double totalAreaInSquareMeters) {
+    if (totalAreaInSquareMeters <= 0) {
       throw ArgumentError(
-        'Area must be greater than 0 to calculate price per m²',
+        'Total area must be greater than 0 to calculate price per square meter',
       );
     }
 
-    return Price.create(amount: amount / areaM2, currency: currency);
+    return Price.create(
+      monetaryAmountValue: monetaryAmountValue / totalAreaInSquareMeters,
+      transactionCurrency: transactionCurrency,
+    );
   }
 
-  /// Gets formatted price per m² for display
-  String getFormattedPricePerM2(double areaM2) {
-    final pricePerM2 = calculatePricePerM2(areaM2);
-    return '${pricePerM2.getFormattedPrice()}/m²';
+  /// Formats price per square meter for property comparison display
+  /// Enables easy valuation comparison between similar properties
+  String formatPricePerSquareMeterForDisplay(double totalAreaInSquareMeters) {
+    final pricePerSquareMeter = calculatePricePerSquareMeter(
+      totalAreaInSquareMeters,
+    );
+    return '${pricePerSquareMeter.generateFormattedPriceForDisplay()}/m²';
   }
 
-  /// Checks if price is within specified range
-  bool isWithinRange(Price minPrice, Price maxPrice) {
-    // For simplicity in V1, only compare prices in same currency
-    if (currency != minPrice.currency || currency != maxPrice.currency) {
+  /// Determines if price falls within specified range boundaries
+  /// Enables property filtering by price range in search functionality
+  bool isWithinPriceRange(
+    Price minimumPriceThreshold,
+    Price maximumPriceThreshold,
+  ) {
+    // Same currency comparison only to avoid exchange rate complications in V1
+    if (transactionCurrency != minimumPriceThreshold.transactionCurrency ||
+        transactionCurrency != maximumPriceThreshold.transactionCurrency) {
       return false;
     }
 
-    return amount >= minPrice.amount && amount <= maxPrice.amount;
+    return monetaryAmountValue >= minimumPriceThreshold.monetaryAmountValue &&
+        monetaryAmountValue <= maximumPriceThreshold.monetaryAmountValue;
   }
 
-  /// Calculates percentage difference from another price
-  double percentageDifferenceFrom(Price otherPrice) {
-    if (currency != otherPrice.currency) {
-      throw ArgumentError('Cannot compare prices in different currencies');
+  /// Calculates percentage difference from another price for market analysis
+  /// Used for price trend analysis and property value assessment
+  double calculatePercentageDifferenceFrom(Price comparisonPrice) {
+    if (transactionCurrency != comparisonPrice.transactionCurrency) {
+      throw ArgumentError(
+        'Cannot compare prices in different currencies without exchange rate',
+      );
     }
 
-    if (otherPrice.amount == 0) {
-      throw ArgumentError('Cannot calculate percentage from zero price');
+    if (comparisonPrice.monetaryAmountValue == 0) {
+      throw ArgumentError(
+        'Cannot calculate percentage difference from zero-value price',
+      );
     }
 
-    return ((amount - otherPrice.amount) / otherPrice.amount) * 100;
+    return ((monetaryAmountValue - comparisonPrice.monetaryAmountValue) /
+            comparisonPrice.monetaryAmountValue) *
+        100;
   }
 
   // PRICE COMPARISON
 
-  /// Compares with another price (same currency only)
-  int compareTo(Price other) {
-    if (currency != other.currency) {
-      throw ArgumentError('Cannot compare prices in different currencies');
+  /// Compares price magnitude with another price (same currency only)
+  /// Enables price sorting and ranking functionality
+  int compareToPrice(Price otherPrice) {
+    if (transactionCurrency != otherPrice.transactionCurrency) {
+      throw ArgumentError(
+        'Cannot compare prices in different currencies without exchange rate',
+      );
     }
 
-    return amount.compareTo(other.amount);
+    return monetaryAmountValue.compareTo(otherPrice.monetaryAmountValue);
   }
 
-  /// Checks if price is higher than another
-  bool isHigherThan(Price other) {
-    return compareTo(other) > 0;
+  /// Determines if this price exceeds another price value
+  /// Useful for price threshold validation and comparison
+  bool isHigherThanPrice(Price comparisonPrice) {
+    return compareToPrice(comparisonPrice) > 0;
   }
 
-  /// Checks if price is lower than another
-  bool isLowerThan(Price other) {
-    return compareTo(other) < 0;
+  /// Determines if this price is below another price value
+  /// Useful for budget filtering and affordability checks
+  bool isLowerThanPrice(Price comparisonPrice) {
+    return compareToPrice(comparisonPrice) < 0;
   }
 
   // PRICE CATEGORIES FOR FILTERING
 
-  /// Gets price category for filtering
-  PriceCategory getPriceCategory() {
-    final baseAmount = currency == Currency.usd
-        ? amount *
-              3.8 // Rough USD to PEN conversion for categorization
-        : amount;
+  /// Determines price category for market segmentation and filtering
+  /// Categories based on Piura real estate market ranges
+  PriceMarketCategory determinePriceMarketCategory() {
+    final solesEquivalentAmount = transactionCurrency == Currency.usd
+        ? monetaryAmountValue *
+              3.8 // Approximate USD to PEN conversion for categorization
+        : monetaryAmountValue;
 
-    if (baseAmount < 150000) return PriceCategory.budget;
-    if (baseAmount < 300000) return PriceCategory.mid;
-    if (baseAmount < 600000) return PriceCategory.high;
-    return PriceCategory.luxury;
+    if (solesEquivalentAmount < 150000)
+      return PriceMarketCategory.economicSegment;
+    if (solesEquivalentAmount < 300000)
+      return PriceMarketCategory.midMarketSegment;
+    if (solesEquivalentAmount < 600000)
+      return PriceMarketCategory.upscaleSegment;
+    return PriceMarketCategory.luxurySegment;
   }
 
   // VALIDATION
 
-  /// Validates price data
-  List<String> _validate() {
-    final errors = <String>[];
+  /// Validates price data comprehensively for Piura market context
+  /// Prevents invalid amounts that would break financial functionality
+  List<String> _validatePriceData() {
+    final validationErrors = <String>[];
 
-    // Amount validation
-    if (amount <= 0) {
-      errors.add('Price amount must be greater than 0');
+    // Amount validation - must be positive for valid transactions
+    if (monetaryAmountValue <= 0) {
+      validationErrors.add(
+        'Price amount must be greater than 0 for valid property transactions',
+      );
     }
 
-    // Reasonable price limits for Peru real estate
-    if (currency == Currency.pen) {
-      if (amount > 10000000) {
-        // 10 million soles
-        errors.add('Price cannot exceed S/ 10,000,000');
+    // Precision validation - excessive decimal places indicate data corruption
+    final decimalPlaces = monetaryAmountValue.toString().split('.').length > 1
+        ? monetaryAmountValue.toString().split('.')[1].length
+        : 0;
+    if (decimalPlaces > 2) {
+      validationErrors.add(
+        'Price precision cannot exceed 2 decimal places (currency subdivision limit)',
+      );
+    }
+
+    // Piura market reasonable limits based on local property values
+    if (transactionCurrency == Currency.pen) {
+      if (monetaryAmountValue > 2000000) {
+        // 2 million soles - beyond typical Piura property range
+        validationErrors.add(
+          'PEN price cannot exceed S/ 2,000,000 (exceeds typical Piura market range)',
+        );
       }
-      if (amount < 1000) {
-        // 1,000 soles
-        errors.add('Price cannot be less than S/ 1,000');
+      if (monetaryAmountValue < 500) {
+        // 500 soles - below realistic minimum
+        validationErrors.add(
+          'PEN price cannot be less than S/ 500 (below realistic property minimum)',
+        );
       }
-    } else if (currency == Currency.usd) {
-      if (amount > 3000000) {
-        // 3 million dollars
-        errors.add('Price cannot exceed US\$ 3,000,000');
+    } else if (transactionCurrency == Currency.usd) {
+      if (monetaryAmountValue > 600000) {
+        // 600k USD - beyond typical Piura luxury range
+        validationErrors.add(
+          'USD price cannot exceed US\$ 600,000 (exceeds typical Piura market range)',
+        );
       }
-      if (amount < 500) {
-        // 500 dollars
-        errors.add('Price cannot be less than US\$ 500');
+      if (monetaryAmountValue < 200) {
+        // 200 USD - below realistic minimum
+        validationErrors.add(
+          'USD price cannot be less than US\$ 200 (below realistic property minimum)',
+        );
       }
     }
 
-    return errors;
+    return validationErrors;
   }
 
-  /// Formats amount with thousands separators
-  static String _formatAmount(double amount) {
+  /// Formats monetary amount with thousands separators for readability
+  /// Follows Peru number formatting conventions
+  static String _formatAmountWithThousandsSeparators(double amount) {
     final integerPart = amount.floor();
     final decimalPart = amount - integerPart;
 
@@ -261,9 +344,8 @@ class Price extends Equatable {
       buffer.write(integerString[i]);
     }
 
-    // Add decimal part if significant
+    // Add decimal part if significant (greater than 1 centimo/cent)
     if (decimalPart > 0.009) {
-      // Only show decimals if > 0.01
       buffer.write(
         '.${(decimalPart * 100).round().toString().padLeft(2, '0')}',
       );
@@ -274,133 +356,159 @@ class Price extends Equatable {
 
   // VALUE OBJECT EQUALITY - Based on all fields
   @override
-  List<Object> get props => [amount, currency];
+  List<Object> get props => [monetaryAmountValue, transactionCurrency];
 
   @override
   String toString() {
-    return 'Price(${getFormattedPrice()})';
+    return 'Price(${generateFormattedPriceForDisplay()})';
   }
 }
 
-/// Price categories for filtering and display
-enum PriceCategory {
-  budget, // < S/ 150K (or equivalent)
-  mid, // S/ 150K - 300K
-  high, // S/ 300K - 600K
-  luxury; // > S/ 600K
+/// Price market categories for filtering and market analysis
+/// Categories reflect Piura real estate market segments and buyer demographics
+enum PriceMarketCategory {
+  economicSegment, // < S/ 150K (or equivalent)
+  midMarketSegment, // S/ 150K - 300K
+  upscaleSegment, // S/ 300K - 600K
+  luxurySegment; // > S/ 600K
 
-  String get displayName {
+  /// Localized category labels for user interface display
+  String get categoryDisplayLabel {
     switch (this) {
-      case PriceCategory.budget:
+      case PriceMarketCategory.economicSegment:
         return 'Económico';
-      case PriceCategory.mid:
-        return 'Intermedio';
-      case PriceCategory.high:
-        return 'Alto';
-      case PriceCategory.luxury:
+      case PriceMarketCategory.midMarketSegment:
+        return 'Rango Medio';
+      case PriceMarketCategory.upscaleSegment:
+        return 'Alto Valor';
+      case PriceMarketCategory.luxurySegment:
         return 'Lujo';
     }
   }
 
-  /// Gets price range description for category
-  String getRangeDescription() {
+  /// Price range descriptions for search filter display
+  String generateRangeDescription() {
     switch (this) {
-      case PriceCategory.budget:
+      case PriceMarketCategory.economicSegment:
         return 'Hasta S/ 150,000';
-      case PriceCategory.mid:
+      case PriceMarketCategory.midMarketSegment:
         return 'S/ 150,000 - 300,000';
-      case PriceCategory.high:
+      case PriceMarketCategory.upscaleSegment:
         return 'S/ 300,000 - 600,000';
-      case PriceCategory.luxury:
+      case PriceMarketCategory.luxurySegment:
         return 'Más de S/ 600,000';
     }
   }
 }
 
 /// Exception for price validation errors
-class PriceException implements Exception {
+/// Specific exception type enables targeted financial error handling
+class PriceValidationException implements Exception {
   final String message;
   final List<String> violations;
 
-  const PriceException(this.message, this.violations);
+  const PriceValidationException(this.message, this.violations);
 
   @override
   String toString() =>
-      'PriceException: $message\nViolations: ${violations.join(', ')}';
+      'PriceValidationException: $message\nViolations: ${violations.join(', ')}';
 }
 
-/// Price domain service for common operations
+/// Price domain service for common pricing operations and business logic
+/// Centralized service ensures consistent pricing behavior across the platform
 class PriceDomainService {
-  /// Validates price for property listing
-  static List<String> validateForListing(Price price) {
-    final errors = <String>[];
+  /// Validates price specifically for property listing publication
+  /// Additional validation ensures listing prices meet market expectations
+  static List<String> validatePriceForPropertyListing(Price propertyPrice) {
+    final listingValidationErrors = <String>[];
 
-    // Check if price is reasonable for property type
-    if (price.currency == Currency.pen && price.amount < 50000) {
-      errors.add('Property price seems unusually low for Peru market');
+    // Minimum viable property prices for Piura market
+    if (propertyPrice.transactionCurrency == Currency.pen &&
+        propertyPrice.monetaryAmountValue < 30000) {
+      listingValidationErrors.add(
+        'PEN property price seems unusually low for Piura market (below S/ 30,000)',
+      );
     }
 
-    if (price.currency == Currency.usd && price.amount < 15000) {
-      errors.add('Property price seems unusually low for Peru market');
+    if (propertyPrice.transactionCurrency == Currency.usd &&
+        propertyPrice.monetaryAmountValue < 8000) {
+      listingValidationErrors.add(
+        'USD property price seems unusually low for Piura market (below US\$ 8,000)',
+      );
     }
 
-    return errors;
+    // Price precision validation for user interface clarity
+    if (propertyPrice.monetaryAmountValue % 100 != 0 &&
+        propertyPrice.monetaryAmountValue > 10000) {
+      listingValidationErrors.add(
+        'Large property prices should be rounded to hundreds for better presentation',
+      );
+    }
+
+    return listingValidationErrors;
   }
 
-  /// Gets typical currency for operation type
-  static Currency getTypicalCurrencyFor(String operationType) {
+  /// Determines typical currency for operation type in Piura market
+  /// Based on local market practices and transaction preferences
+  static Currency getTypicalCurrencyForOperationType(String operationType) {
     switch (operationType.toLowerCase()) {
       case 'venta':
-        return Currency.usd; // Sales often in dollars
+        return Currency.usd; // Sales commonly priced in USD in Piura
       case 'alquiler':
-        return Currency.pen; // Rentals often in soles
+        return Currency.pen; // Rentals typically priced in PEN in Piura
       default:
-        return Currency.pen; // Default to soles
+        return Currency.pen; // Default to local currency
     }
   }
 
-  /// Creates price range for search filters
-  static List<Price> createPriceRanges(Currency currency) {
+  /// Creates predefined price ranges for search filters
+  /// Ranges optimized for Piura property market distribution
+  static List<Price> createSearchFilterPriceRanges(Currency currency) {
     if (currency == Currency.pen) {
       return [
-        Price.inSoles(0),
-        Price.inSoles(100000),
-        Price.inSoles(200000),
-        Price.inSoles(350000),
-        Price.inSoles(500000),
-        Price.inSoles(750000),
-        Price.inSoles(1000000),
-        Price.inSoles(2000000),
+        Price.createInSoles(0),
+        Price.createInSoles(50000),
+        Price.createInSoles(100000),
+        Price.createInSoles(200000),
+        Price.createInSoles(300000),
+        Price.createInSoles(500000),
+        Price.createInSoles(750000),
+        Price.createInSoles(1000000),
       ];
     } else {
       return [
-        Price.inDollars(0),
-        Price.inDollars(25000),
-        Price.inDollars(50000),
-        Price.inDollars(100000),
-        Price.inDollars(150000),
-        Price.inDollars(250000),
-        Price.inDollars(400000),
-        Price.inDollars(600000),
+        Price.createInDollars(0),
+        Price.createInDollars(15000),
+        Price.createInDollars(30000),
+        Price.createInDollars(60000),
+        Price.createInDollars(100000),
+        Price.createInDollars(150000),
+        Price.createInDollars(250000),
+        Price.createInDollars(400000),
       ];
     }
   }
 
-  /// Formats price for search URL parameters
-  static String formatForUrl(Price price) {
-    return '${price.amount.toInt()}_${price.currency.code}';
+  /// Formats price for URL parameters in search and routing
+  /// Enables price-based deep linking and shareable property searches
+  static String formatPriceForUrlParameter(Price price) {
+    return '${price.monetaryAmountValue.toInt()}_${price.transactionCurrency.isoCurrencyCode}';
   }
 
-  /// Parses price from URL parameter
-  static Price? parseFromUrl(String urlParam) {
+  /// Parses price from URL parameter string
+  /// Enables price reconstruction from deep links and shared searches
+  static Price? parsePriceFromUrlParameter(String urlParameter) {
     try {
-      final parts = urlParam.split('_');
+      final parts = urlParameter.split('_');
       if (parts.length != 2) return null;
 
       final amount = double.parse(parts[0]);
-      final currency = Currency.fromCode(parts[1]);
+      final currency = Currency.fromIsoCode(parts[1]);
 
-      return Price.create(amount: amount, currency: currency);
+      return Price.create(
+        monetaryAmountValue: amount,
+        transactionCurrency: currency,
+      );
     } catch (e) {
       return null;
     }

@@ -4,404 +4,494 @@ import 'package:equatable/equatable.dart';
 
 /// PropertySpecs value object for physical property characteristics
 ///
-/// This immutable value object encapsulates all the measurable and
-/// countable characteristics of a property. It handles validation,
-/// formatting, and basic calculations for property specifications.
+/// Encapsulates measurable property attributes because Peru's real estate market
+/// heavily relies on accurate specifications for pricing, filtering, and buyer decisions.
+/// Immutable design prevents data corruption during property lifecycle.
 ///
 /// V1 Scope: Basic property specs for search filtering and display
 class PropertySpecs extends Equatable {
   /// Property area in square meters
-  final double areaM2;
+  /// Critical for pricing calculations and legal documentation in Peru
+  final double totalAreaInSquareMeters;
 
   /// Number of bedrooms (null for commercial properties/terrenos)
-  final int? bedrooms;
+  /// Optional because commercial properties and land don't have bedrooms
+  final int? bedroomCount;
 
   /// Number of bathrooms (null for terrenos)
-  final int? bathrooms;
+  /// Optional because raw land doesn't have bathrooms
+  final int? bathroomCount;
 
-  /// Number of parking spots (0 if none)
-  final int parkingSpots;
+  /// Number of available parking spaces (0 if none)
+  /// Important in Peru's urban areas where parking is scarce and valuable
+  final int availableParkingSpaces;
 
-  /// Property amenities and features
-  final List<String> amenities;
+  /// Property amenities and features list
+  /// Stored as list because amenities vary widely and affect property value significantly
+  final List<String> propertyAmenities;
 
   const PropertySpecs._({
-    required this.areaM2,
-    required this.parkingSpots,
-    required this.amenities,
-    this.bedrooms,
-    this.bathrooms,
+    required this.totalAreaInSquareMeters,
+    required this.availableParkingSpaces,
+    required this.propertyAmenities,
+    this.bedroomCount,
+    this.bathroomCount,
   });
 
-  /// Creates PropertySpecs with validation
+  /// Creates PropertySpecs with comprehensive validation
+  /// Validation prevents invalid data that would break pricing and search functionality
   factory PropertySpecs.create({
-    required double areaM2,
-    int? bedrooms,
-    int? bathrooms,
-    int parkingSpots = 0,
-    List<String>? amenities,
+    required double totalAreaInSquareMeters,
+    int? bedroomCount,
+    int? bathroomCount,
+    int availableParkingSpaces = 0,
+    List<String>? propertyAmenities,
   }) {
     final specs = PropertySpecs._(
-      areaM2: areaM2,
-      bedrooms: bedrooms,
-      bathrooms: bathrooms,
-      parkingSpots: parkingSpots,
-      amenities: amenities?.map((a) => a.trim()).toList() ?? [],
+      totalAreaInSquareMeters: totalAreaInSquareMeters,
+      bedroomCount: bedroomCount,
+      bathroomCount: bathroomCount,
+      availableParkingSpaces: availableParkingSpaces,
+      propertyAmenities:
+          propertyAmenities?.map((amenity) => amenity.trim()).toList() ?? [],
     );
 
-    final violations = specs._validate();
-    if (violations.isNotEmpty) {
-      throw PropertySpecsException(
+    final validationErrors = specs._validatePropertySpecifications();
+    if (validationErrors.isNotEmpty) {
+      throw PropertySpecsValidationException(
         'Invalid property specifications',
-        violations,
+        validationErrors,
       );
     }
 
     return specs;
   }
 
-  /// Creates PropertySpecs for residential property (casa/departamento)
-  factory PropertySpecs.createResidential({
-    required double areaM2,
-    required int bedrooms,
-    required int bathrooms,
-    int parkingSpots = 0,
-    List<String>? amenities,
+  /// Creates PropertySpecs for residential properties (casa/departamento)
+  /// Separate factory ensures residential properties always have room counts
+  factory PropertySpecs.createForResidentialProperty({
+    required double totalAreaInSquareMeters,
+    required int bedroomCount,
+    required int bathroomCount,
+    int availableParkingSpaces = 0,
+    List<String>? propertyAmenities,
   }) {
     return PropertySpecs.create(
-      areaM2: areaM2,
-      bedrooms: bedrooms,
-      bathrooms: bathrooms,
-      parkingSpots: parkingSpots,
-      amenities: amenities,
+      totalAreaInSquareMeters: totalAreaInSquareMeters,
+      bedroomCount: bedroomCount,
+      bathroomCount: bathroomCount,
+      availableParkingSpaces: availableParkingSpaces,
+      propertyAmenities: propertyAmenities,
     );
   }
 
-  /// Creates PropertySpecs for terreno (no rooms)
-  factory PropertySpecs.createTerreno({
-    required double areaM2,
-    int parkingSpots = 0,
-    List<String>? amenities,
+  /// Creates PropertySpecs for terreno (land without structures)
+  /// Separate factory prevents accidental room assignments to land
+  factory PropertySpecs.createForLandProperty({
+    required double totalAreaInSquareMeters,
+    int availableParkingSpaces = 0,
+    List<String>? propertyAmenities,
   }) {
     return PropertySpecs.create(
-      areaM2: areaM2,
-      bedrooms: null,
-      bathrooms: null,
-      parkingSpots: parkingSpots,
-      amenities: amenities,
+      totalAreaInSquareMeters: totalAreaInSquareMeters,
+      bedroomCount: null,
+      bathroomCount: null,
+      availableParkingSpaces: availableParkingSpaces,
+      propertyAmenities: propertyAmenities,
     );
   }
 
   // PROPERTY CALCULATIONS
 
-  /// Calculates price per square meter
-  double calculatePricePerM2(double totalPrice) {
-    if (areaM2 <= 0) {
+  /// Calculates price per square meter for valuation analysis
+  /// Critical metric for Peru real estate market pricing and comparison
+  double calculatePricePerSquareMeter(double totalPropertyPrice) {
+    if (totalAreaInSquareMeters <= 0) {
       throw ArgumentError(
         'Cannot calculate price per m² with zero or negative area',
       );
     }
-    return totalPrice / areaM2;
+    return totalPropertyPrice / totalAreaInSquareMeters;
   }
 
-  /// Gets formatted price per m² for display
-  String formatPricePerM2(double totalPrice, String currency) {
-    final pricePerM2 = calculatePricePerM2(totalPrice);
-    final symbol = currency == 'USD' ? 'US\$' : 'S/';
+  /// Formats price per square meter for user interface display
+  /// Format matches Peru market conventions for easy user comprehension
+  String formatPricePerSquareMeterForDisplay(
+    double totalPropertyPrice,
+    String currencyCode,
+  ) {
+    final pricePerSquareMeter = calculatePricePerSquareMeter(
+      totalPropertyPrice,
+    );
+    final currencySymbol = currencyCode == 'USD' ? 'US\$' : 'S/';
 
-    if (pricePerM2 >= 1000) {
-      return '$symbol ${(pricePerM2 / 1000).toStringAsFixed(1)}K/m²';
+    if (pricePerSquareMeter >= 1000) {
+      return '$currencySymbol ${(pricePerSquareMeter / 1000).toStringAsFixed(1)}K/m²';
     } else {
-      return '$symbol ${pricePerM2.toInt()}/m²';
+      return '$currencySymbol ${pricePerSquareMeter.toInt()}/m²';
     }
   }
 
-  /// Checks if property has rooms (residential)
-  bool hasRooms() {
-    return bedrooms != null && bathrooms != null;
+  /// Determines if property has residential room structure
+  /// Used to differentiate between residential and commercial/land properties
+  bool hasResidentialRoomStructure() {
+    return bedroomCount != null && bathroomCount != null;
   }
 
-  /// Checks if property has parking
-  bool hasParking() {
-    return parkingSpots > 0;
+  /// Determines if property offers parking facilities
+  /// Important for urban Peru where parking availability affects property value
+  bool hasParkingFacilities() {
+    return availableParkingSpaces > 0;
   }
 
-  /// Checks if property has specific amenity
-  bool hasAmenity(String amenity) {
-    return amenities.any(
-      (a) => a.toLowerCase().contains(amenity.toLowerCase()),
+  /// Checks if property includes specific amenity
+  /// Case-insensitive search because user input varies in capitalization
+  bool includesAmenity(String targetAmenity) {
+    return propertyAmenities.any(
+      (existingAmenity) =>
+          existingAmenity.toLowerCase().contains(targetAmenity.toLowerCase()),
     );
   }
 
   // DISPLAY AND FORMATTING
 
-  /// Gets property summary for listings (e.g., "3 hab, 2 baños, 120 m²")
-  String getPropertySummary() {
-    final parts = <String>[];
+  /// Generates concise property summary for listing cards
+  /// Format optimized for Peru market expectations (Spanish abbreviations)
+  String generateListingCardSummary() {
+    final summaryParts = <String>[];
 
-    if (bedrooms != null) {
-      parts.add('$bedrooms hab');
+    if (bedroomCount != null) {
+      summaryParts.add('$bedroomCount hab');
     }
 
-    if (bathrooms != null) {
-      parts.add('$bathrooms baño${bathrooms! > 1 ? 's' : ''}');
+    if (bathroomCount != null) {
+      summaryParts.add('$bathroomCount baño${bathroomCount! > 1 ? 's' : ''}');
     }
 
-    parts.add('${areaM2.toInt()} m²');
+    summaryParts.add('${totalAreaInSquareMeters.toInt()} m²');
 
-    if (parkingSpots > 0) {
-      parts.add('$parkingSpots cochera${parkingSpots > 1 ? 's' : ''}');
+    if (availableParkingSpaces > 0) {
+      summaryParts.add(
+        '$availableParkingSpaces cochera${availableParkingSpaces > 1 ? 's' : ''}',
+      );
     }
 
-    return parts.join(', ');
+    return summaryParts.join(', ');
   }
 
-  /// Gets detailed specifications for property page
-  String getDetailedSpecs() {
-    final buffer = StringBuffer();
+  /// Generates detailed specifications for property detail pages
+  /// Multi-line format provides comprehensive property information
+  String generateDetailedSpecificationsList() {
+    final specificationBuffer = StringBuffer();
 
-    buffer.writeln('Área: ${areaM2.toInt()} m²');
+    specificationBuffer.writeln(
+      'Área Total: ${totalAreaInSquareMeters.toInt()} m²',
+    );
 
-    if (bedrooms != null) {
-      buffer.writeln('Dormitorios: $bedrooms');
+    if (bedroomCount != null) {
+      specificationBuffer.writeln('Dormitorios: $bedroomCount');
     }
 
-    if (bathrooms != null) {
-      buffer.writeln('Baños: $bathrooms');
+    if (bathroomCount != null) {
+      specificationBuffer.writeln('Baños: $bathroomCount');
     }
 
-    if (parkingSpots > 0) {
-      buffer.writeln('Estacionamientos: $parkingSpots');
+    if (availableParkingSpaces > 0) {
+      specificationBuffer.writeln('Estacionamientos: $availableParkingSpaces');
     }
 
-    if (amenities.isNotEmpty) {
-      buffer.writeln('Características: ${amenities.join(', ')}');
+    if (propertyAmenities.isNotEmpty) {
+      specificationBuffer.writeln(
+        'Características Adicionales: ${propertyAmenities.join(', ')}',
+      );
     }
 
-    return buffer.toString().trim();
+    return specificationBuffer.toString().trim();
   }
 
-  /// Gets area display with proper formatting
-  String getAreaDisplay() {
-    if (areaM2 >= 1000) {
-      return '${(areaM2 / 1000).toStringAsFixed(1)} mil m²';
+  /// Formats area for user-friendly display with appropriate units
+  /// Uses thousands separator for large areas common in commercial properties
+  String formatAreaForUserDisplay() {
+    if (totalAreaInSquareMeters >= 1000) {
+      return '${(totalAreaInSquareMeters / 1000).toStringAsFixed(1)} mil m²';
     } else {
-      return '${areaM2.toInt()} m²';
+      return '${totalAreaInSquareMeters.toInt()} m²';
     }
   }
 
-  /// Gets room summary (e.g., "3/2" for 3 bed, 2 bath)
-  String? getRoomSummary() {
-    if (bedrooms == null || bathrooms == null) return null;
-    return '$bedrooms/$bathrooms';
+  /// Generates compact room count summary for filter displays
+  /// Returns null for non-residential properties to avoid confusion
+  String? generateRoomCountSummary() {
+    if (bedroomCount == null || bathroomCount == null) return null;
+    return '$bedroomCount/$bathroomCount';
   }
 
   // SEARCH AND FILTERING
 
-  /// Checks if specs match search filters
-  bool matchesFilters({
-    int? minBedrooms,
-    int? maxBedrooms,
-    int? minBathrooms,
-    int? maxBathrooms,
-    double? minArea,
-    double? maxArea,
-    int? minParkingSpots,
+  /// Evaluates if property specifications match search criteria
+  /// Comprehensive filtering enables precise property discovery
+  bool matchesSearchFilters({
+    int? minimumBedroomCount,
+    int? maximumBedroomCount,
+    int? minimumBathroomCount,
+    int? maximumBathroomCount,
+    double? minimumAreaInSquareMeters,
+    double? maximumAreaInSquareMeters,
+    int? minimumParkingSpaces,
     List<String>? requiredAmenities,
   }) {
-    // Bedroom filtering
-    if (minBedrooms != null) {
-      if (bedrooms == null || bedrooms! < minBedrooms) return false;
+    // Bedroom count filtering
+    if (minimumBedroomCount != null) {
+      if (bedroomCount == null || bedroomCount! < minimumBedroomCount) {
+        return false;
+      }
     }
 
-    if (maxBedrooms != null) {
-      if (bedrooms == null || bedrooms! > maxBedrooms) return false;
+    if (maximumBedroomCount != null) {
+      if (bedroomCount == null || bedroomCount! > maximumBedroomCount) {
+        return false;
+      }
     }
 
-    // Bathroom filtering
-    if (minBathrooms != null) {
-      if (bathrooms == null || bathrooms! < minBathrooms) return false;
+    // Bathroom count filtering
+    if (minimumBathroomCount != null) {
+      if (bathroomCount == null || bathroomCount! < minimumBathroomCount) {
+        return false;
+      }
     }
 
-    if (maxBathrooms != null) {
-      if (bathrooms == null || bathrooms! > maxBathrooms) return false;
+    if (maximumBathroomCount != null) {
+      if (bathroomCount == null || bathroomCount! > maximumBathroomCount) {
+        return false;
+      }
     }
 
     // Area filtering
-    if (minArea != null && areaM2 < minArea) return false;
-    if (maxArea != null && areaM2 > maxArea) return false;
+    if (minimumAreaInSquareMeters != null &&
+        totalAreaInSquareMeters < minimumAreaInSquareMeters) {
+      return false;
+    }
+    if (maximumAreaInSquareMeters != null &&
+        totalAreaInSquareMeters > maximumAreaInSquareMeters) {
+      return false;
+    }
 
     // Parking filtering
-    if (minParkingSpots != null && parkingSpots < minParkingSpots) return false;
+    if (minimumParkingSpaces != null &&
+        availableParkingSpaces < minimumParkingSpaces) {
+      return false;
+    }
 
-    // Amenities filtering
+    // Amenities filtering - all required amenities must be present
     if (requiredAmenities != null) {
       for (final requiredAmenity in requiredAmenities) {
-        if (!hasAmenity(requiredAmenity)) return false;
+        if (!includesAmenity(requiredAmenity)) return false;
       }
     }
 
     return true;
   }
 
-  /// Gets size category for filtering
-  PropertySizeCategory getSizeCategory() {
-    if (areaM2 < 50) return PropertySizeCategory.small;
-    if (areaM2 < 100) return PropertySizeCategory.medium;
-    if (areaM2 < 200) return PropertySizeCategory.large;
-    return PropertySizeCategory.extraLarge;
+  /// Categorizes property size for filtering and comparison
+  /// Categories align with Peru real estate market segments
+  PropertySizeCategory determinePropertySizeCategory() {
+    if (totalAreaInSquareMeters < 50) return PropertySizeCategory.compact;
+    if (totalAreaInSquareMeters < 100) return PropertySizeCategory.standard;
+    if (totalAreaInSquareMeters < 200) return PropertySizeCategory.spacious;
+    return PropertySizeCategory.expansive;
   }
 
   // AMENITY MANAGEMENT
 
-  /// Adds amenity if not already present
-  PropertySpecs addAmenity(String amenity) {
-    final trimmedAmenity = amenity.trim();
-    if (hasAmenity(trimmedAmenity)) return this;
+  /// Adds new amenity to property while preventing duplicates
+  /// Returns new instance maintaining immutability
+  PropertySpecs addPropertyAmenity(String newAmenity) {
+    final sanitizedAmenity = newAmenity.trim();
+    if (includesAmenity(sanitizedAmenity)) return this;
 
     return PropertySpecs._(
-      areaM2: areaM2,
-      bedrooms: bedrooms,
-      bathrooms: bathrooms,
-      parkingSpots: parkingSpots,
-      amenities: [...amenities, trimmedAmenity],
+      totalAreaInSquareMeters: totalAreaInSquareMeters,
+      bedroomCount: bedroomCount,
+      bathroomCount: bathroomCount,
+      availableParkingSpaces: availableParkingSpaces,
+      propertyAmenities: [...propertyAmenities, sanitizedAmenity],
     );
   }
 
-  /// Removes amenity if present
-  PropertySpecs removeAmenity(String amenity) {
-    final filteredAmenities = amenities
-        .where((a) => !a.toLowerCase().contains(amenity.toLowerCase()))
+  /// Removes amenity from property if present
+  /// Case-insensitive removal to handle user input variations
+  PropertySpecs removePropertyAmenity(String amenityToRemove) {
+    final updatedAmenities = propertyAmenities
+        .where(
+          (existingAmenity) => !existingAmenity.toLowerCase().contains(
+            amenityToRemove.toLowerCase(),
+          ),
+        )
         .toList();
 
     return PropertySpecs._(
-      areaM2: areaM2,
-      bedrooms: bedrooms,
-      bathrooms: bathrooms,
-      parkingSpots: parkingSpots,
-      amenities: filteredAmenities,
+      totalAreaInSquareMeters: totalAreaInSquareMeters,
+      bedroomCount: bedroomCount,
+      bathroomCount: bathroomCount,
+      availableParkingSpaces: availableParkingSpaces,
+      propertyAmenities: updatedAmenities,
     );
   }
 
   // VALIDATION
 
-  /// Validates property specifications
-  List<String> _validate() {
-    final errors = <String>[];
+  /// Validates all property specification fields comprehensively
+  /// Prevents invalid data that would break property functionality and user experience
+  List<String> _validatePropertySpecifications() {
+    final validationErrors = <String>[];
 
-    // Area validation
-    if (areaM2 <= 0) {
-      errors.add('Area must be greater than 0 square meters');
+    // Area validation - critical for all property calculations
+    if (totalAreaInSquareMeters <= 0) {
+      validationErrors.add('Total area must be greater than 0 square meters');
     }
-    if (areaM2 > 50000) {
-      errors.add('Area cannot exceed 50,000 square meters');
-    }
-
-    // Bedroom validation
-    if (bedrooms != null) {
-      if (bedrooms! < 1) {
-        errors.add('Bedrooms must be at least 1 if specified');
-      }
-      if (bedrooms! > 20) {
-        errors.add('Bedrooms cannot exceed 20');
-      }
+    if (totalAreaInSquareMeters > 50000) {
+      validationErrors.add(
+        'Total area cannot exceed 50,000 square meters (unrealistic for individual properties)',
+      );
     }
 
-    // Bathroom validation
-    if (bathrooms != null) {
-      if (bathrooms! < 1) {
-        errors.add('Bathrooms must be at least 1 if specified');
+    // Bedroom validation - ensures reasonable residential property configuration
+    if (bedroomCount != null) {
+      if (bedroomCount! < 1) {
+        validationErrors.add('Bedroom count must be at least 1 if specified');
       }
-      if (bathrooms! > 15) {
-        errors.add('Bathrooms cannot exceed 15');
+      if (bedroomCount! > 20) {
+        validationErrors.add(
+          'Bedroom count cannot exceed 20 (unrealistic for residential properties)',
+        );
       }
     }
 
-    // Logical validation
-    if (bathrooms != null && bedrooms != null) {
-      if (bathrooms! > bedrooms! + 2) {
-        errors.add('Bathrooms cannot exceed bedrooms by more than 2');
+    // Bathroom validation - ensures practical property configuration
+    if (bathroomCount != null) {
+      if (bathroomCount! < 1) {
+        validationErrors.add('Bathroom count must be at least 1 if specified');
+      }
+      if (bathroomCount! > 15) {
+        validationErrors.add(
+          'Bathroom count cannot exceed 15 (unrealistic for residential properties)',
+        );
       }
     }
 
-    // Parking validation
-    if (parkingSpots < 0) {
-      errors.add('Parking spots cannot be negative');
-    }
-    if (parkingSpots > 50) {
-      errors.add('Parking spots cannot exceed 50');
-    }
-
-    // Amenities validation
-    if (amenities.length > 30) {
-      errors.add('Cannot have more than 30 amenities');
+    // Room count relationship validation - maintains logical property structure
+    if (bathroomCount != null && bedroomCount != null) {
+      if (bathroomCount! > bedroomCount! + 2) {
+        validationErrors.add(
+          'Bathroom count cannot exceed bedroom count by more than 2 (unusual property configuration)',
+        );
+      }
     }
 
-    for (final amenity in amenities) {
+    // Parking validation - ensures realistic parking arrangements
+    if (availableParkingSpaces < 0) {
+      validationErrors.add('Available parking spaces cannot be negative');
+    }
+    if (availableParkingSpaces > 50) {
+      validationErrors.add(
+        'Available parking spaces cannot exceed 50 (unrealistic for individual properties)',
+      );
+    }
+
+    // Amenities validation - prevents system abuse and maintains data quality
+    if (propertyAmenities.length > 30) {
+      validationErrors.add(
+        'Cannot have more than 30 amenities (excessive for property listings)',
+      );
+    }
+
+    for (final amenity in propertyAmenities) {
       if (amenity.trim().isEmpty) {
-        errors.add('Amenities cannot be empty');
+        validationErrors.add('Property amenities cannot be empty strings');
       }
       if (amenity.length > 50) {
-        errors.add('Amenity names cannot exceed 50 characters');
+        validationErrors.add(
+          'Amenity descriptions cannot exceed 50 characters',
+        );
       }
     }
 
-    return errors;
+    // Area-to-room density validation - ensures realistic living space
+    if (hasResidentialRoomStructure()) {
+      final areaPerBedroom = totalAreaInSquareMeters / bedroomCount!;
+      if (areaPerBedroom < 8) {
+        validationErrors.add(
+          'Area per bedroom is unrealistically small (less than 8 m² per bedroom)',
+        );
+      }
+      if (areaPerBedroom > 200) {
+        validationErrors.add(
+          'Area per bedroom is unrealistically large (more than 200 m² per bedroom)',
+        );
+      }
+    }
+
+    return validationErrors;
   }
 
   // VALUE OBJECT EQUALITY - Based on all fields
   @override
   List<Object?> get props => [
-    areaM2,
-    bedrooms,
-    bathrooms,
-    parkingSpots,
-    amenities,
+    totalAreaInSquareMeters,
+    bedroomCount,
+    bathroomCount,
+    availableParkingSpaces,
+    propertyAmenities,
   ];
 
   @override
   String toString() {
-    return 'PropertySpecs(${getPropertySummary()})';
+    return 'PropertySpecs(${generateListingCardSummary()})';
   }
 }
 
-/// Property size categories for filtering
+/// Property size categories for filtering and market segmentation
+/// Categories reflect Peru real estate market standards and user search patterns
 enum PropertySizeCategory {
-  small, // < 50 m²
-  medium, // 50-100 m²
-  large, // 100-200 m²
-  extraLarge; // > 200 m²
+  compact, // < 50 m²
+  standard, // 50-100 m²
+  spacious, // 100-200 m²
+  expansive; // > 200 m²
 
-  String get displayName {
+  /// Provides localized category labels for user interface components
+  String get categoryDisplayLabel {
     switch (this) {
-      case PropertySizeCategory.small:
-        return 'Pequeño (< 50 m²)';
-      case PropertySizeCategory.medium:
-        return 'Mediano (50-100 m²)';
-      case PropertySizeCategory.large:
-        return 'Grande (100-200 m²)';
-      case PropertySizeCategory.extraLarge:
-        return 'Extra Grande (> 200 m²)';
+      case PropertySizeCategory.compact:
+        return 'Compacto (< 50 m²)';
+      case PropertySizeCategory.standard:
+        return 'Estándar (50-100 m²)';
+      case PropertySizeCategory.spacious:
+        return 'Espacioso (100-200 m²)';
+      case PropertySizeCategory.expansive:
+        return 'Amplio (> 200 m²)';
     }
   }
 }
 
 /// Exception for property specs validation errors
-class PropertySpecsException implements Exception {
+/// Specific exception type enables targeted error handling in application layers
+class PropertySpecsValidationException implements Exception {
   final String message;
   final List<String> violations;
 
-  const PropertySpecsException(this.message, this.violations);
+  const PropertySpecsValidationException(this.message, this.violations);
 
   @override
   String toString() =>
-      'PropertySpecsException: $message\nViolations: ${violations.join(', ')}';
+      'PropertySpecsValidationException: $message\nViolations: ${violations.join(', ')}';
 }
 
-/// PropertySpecs domain service for common operations
+/// PropertySpecs domain service for common operations and business logic
+/// Centralized service reduces code duplication and ensures consistent behavior
 class PropertySpecsDomainService {
-  /// Common amenities in Peru properties (for reference/suggestions)
-  static const List<String> commonAmenities = [
+  /// Standard amenities commonly found in Peru properties
+  /// Predefined list improves data consistency and provides autocomplete options
+  static const List<String> standardPeruPropertyAmenities = [
     'Piscina',
     'Jardín',
     'Balcón',
@@ -423,141 +513,188 @@ class PropertySpecsDomainService {
     'Transporte Público',
   ];
 
-  /// Validates property specs for listing creation
-  static List<String> validateForListing(PropertySpecs specs) {
-    final errors = <String>[];
+  /// Validates property specs specifically for listing publication requirements
+  /// Additional validation ensures listing quality and prevents problematic publications
+  static List<String> validateSpecificationsForListingPublication(
+    PropertySpecs specifications,
+  ) {
+    final listingValidationErrors = <String>[];
 
-    // Area should be reasonable for the property type
-    if (specs.hasRooms()) {
-      // Residential properties
-      if (specs.areaM2 < 20) {
-        errors.add('Residential property area seems too small (< 20 m²)');
+    // Area reasonableness checks for different property types
+    if (specifications.hasResidentialRoomStructure()) {
+      // Residential properties need minimum viable living space
+      if (specifications.totalAreaInSquareMeters < 20) {
+        listingValidationErrors.add(
+          'Residential property area seems unrealistically small (< 20 m²)',
+        );
       }
 
-      // Bedroom density check
-      final areaPerBedroom = specs.areaM2 / (specs.bedrooms ?? 1);
+      // Bedroom density validation prevents misleading listings
+      final areaPerBedroom =
+          specifications.totalAreaInSquareMeters /
+          (specifications.bedroomCount ?? 1);
       if (areaPerBedroom < 8) {
-        errors.add('Property seems too small for the number of bedrooms');
+        listingValidationErrors.add(
+          'Property appears too small for the specified number of bedrooms',
+        );
       }
     } else {
-      // Commercial/terreno properties
-      if (specs.areaM2 < 50) {
-        errors.add('Commercial property or terreno area seems small');
+      // Commercial/land properties have different minimum size expectations
+      if (specifications.totalAreaInSquareMeters < 50) {
+        listingValidationErrors.add(
+          'Commercial property or land area seems unusually small',
+        );
       }
     }
 
-    return errors;
+    // Parking validation for urban context
+    if (specifications.availableParkingSpaces >
+        specifications.totalAreaInSquareMeters / 20) {
+      listingValidationErrors.add(
+        'Parking space count seems excessive relative to property size',
+      );
+    }
+
+    return listingValidationErrors;
   }
 
-  /// Estimates property value category based on specs
-  static PropertyValueCategory estimateValueCategory(PropertySpecs specs) {
-    var score = 0;
-
-    // Area contribution
-    if (specs.areaM2 > 200) {
-      score += 3;
-    } else if (specs.areaM2 > 100) {
-      score += 2;
-    } else if (specs.areaM2 > 50) {
-      score += 1;
-    }
-
-    // Rooms contribution
-    if (specs.bedrooms != null && specs.bedrooms! >= 4) {
-      score += 2;
-    } else if (specs.bedrooms != null && specs.bedrooms! >= 3) {
-      score += 1;
-    }
-
-    if (specs.bathrooms != null && specs.bathrooms! >= 3) {
-      score += 2;
-    } else if (specs.bathrooms != null && specs.bathrooms! >= 2) {
-      score += 1;
-    }
-
-    // Parking contribution
-    if (specs.parkingSpots >= 2) {
-      score += 2;
-    } else if (specs.parkingSpots >= 1) {
-      score += 1;
-    }
-
-    // Amenities contribution
-    if (specs.amenities.length >= 5) {
-      score += 2;
-    } else if (specs.amenities.length >= 3) {
-      score += 1;
-    }
-
-    if (score >= 8) return PropertyValueCategory.premium;
-    if (score >= 5) return PropertyValueCategory.mid;
-    return PropertyValueCategory.basic;
-  }
-
-  /// Compares two property specs for similarity
-  static double calculateSimilarity(
-    PropertySpecs specs1,
-    PropertySpecs specs2,
+  /// Estimates property market value category based on specifications
+  /// Scoring system helps users and algorithms categorize properties appropriately
+  static PropertyMarketValueCategory estimateMarketValueCategory(
+    PropertySpecs specifications,
   ) {
-    var similarity = 0.0;
+    var valueScore = 0;
 
-    // Area similarity (40% weight)
-    final areaDifference =
-        (specs1.areaM2 - specs2.areaM2).abs() /
-        ((specs1.areaM2 + specs2.areaM2) / 2);
-    similarity += (1 - areaDifference.clamp(0, 1)) * 0.4;
-
-    // Bedroom similarity (20% weight)
-    if (specs1.bedrooms != null && specs2.bedrooms != null) {
-      final bedroomDiff = (specs1.bedrooms! - specs2.bedrooms!).abs();
-      similarity += (1 - (bedroomDiff / 5).clamp(0, 1)) * 0.2;
+    // Area contribution to value assessment
+    if (specifications.totalAreaInSquareMeters > 200) {
+      valueScore += 3;
+    } else if (specifications.totalAreaInSquareMeters > 100) {
+      valueScore += 2;
+    } else if (specifications.totalAreaInSquareMeters > 50) {
+      valueScore += 1;
     }
 
-    // Bathroom similarity (20% weight)
-    if (specs1.bathrooms != null && specs2.bathrooms != null) {
-      final bathroomDiff = (specs1.bathrooms! - specs2.bathrooms!).abs();
-      similarity += (1 - (bathroomDiff / 3).clamp(0, 1)) * 0.2;
+    // Room count contribution to value assessment
+    if (specifications.bedroomCount != null &&
+        specifications.bedroomCount! >= 4) {
+      valueScore += 2;
+    } else if (specifications.bedroomCount != null &&
+        specifications.bedroomCount! >= 3) {
+      valueScore += 1;
     }
 
-    // Parking similarity (10% weight)
-    final parkingDiff = (specs1.parkingSpots - specs2.parkingSpots).abs();
-    similarity += (1 - (parkingDiff / 3).clamp(0, 1)) * 0.1;
+    if (specifications.bathroomCount != null &&
+        specifications.bathroomCount! >= 3) {
+      valueScore += 2;
+    } else if (specifications.bathroomCount != null &&
+        specifications.bathroomCount! >= 2) {
+      valueScore += 1;
+    }
 
-    // Amenity similarity (10% weight)
-    final commonAmenitiesCount = specs1.amenities
+    // Parking contribution reflects Peru urban property value factors
+    if (specifications.availableParkingSpaces >= 2) {
+      valueScore += 2;
+    } else if (specifications.availableParkingSpaces >= 1) {
+      valueScore += 1;
+    }
+
+    // Amenities contribution to overall property appeal
+    if (specifications.propertyAmenities.length >= 5) {
+      valueScore += 2;
+    } else if (specifications.propertyAmenities.length >= 3) {
+      valueScore += 1;
+    }
+
+    if (valueScore >= 8) return PropertyMarketValueCategory.premium;
+    if (valueScore >= 5) return PropertyMarketValueCategory.midRange;
+    return PropertyMarketValueCategory.economic;
+  }
+
+  /// Calculates similarity score between two property specifications
+  /// Similarity algorithm enables property recommendation and comparison features
+  static double calculateSpecificationSimilarity(
+    PropertySpecs firstProperty,
+    PropertySpecs secondProperty,
+  ) {
+    var totalSimilarityScore = 0.0;
+
+    // Area similarity weighted at 40% due to high importance in property comparison
+    final areaPercentageDifference =
+        (firstProperty.totalAreaInSquareMeters -
+                secondProperty.totalAreaInSquareMeters)
+            .abs() /
+        ((firstProperty.totalAreaInSquareMeters +
+                secondProperty.totalAreaInSquareMeters) /
+            2);
+    totalSimilarityScore += (1 - areaPercentageDifference.clamp(0, 1)) * 0.4;
+
+    // Bedroom similarity weighted at 20% for residential property comparison
+    if (firstProperty.bedroomCount != null &&
+        secondProperty.bedroomCount != null) {
+      final bedroomCountDifference =
+          (firstProperty.bedroomCount! - secondProperty.bedroomCount!).abs();
+      totalSimilarityScore +=
+          (1 - (bedroomCountDifference / 5).clamp(0, 1)) * 0.2;
+    }
+
+    // Bathroom similarity weighted at 20% for practical living space comparison
+    if (firstProperty.bathroomCount != null &&
+        secondProperty.bathroomCount != null) {
+      final bathroomCountDifference =
+          (firstProperty.bathroomCount! - secondProperty.bathroomCount!).abs();
+      totalSimilarityScore +=
+          (1 - (bathroomCountDifference / 3).clamp(0, 1)) * 0.2;
+    }
+
+    // Parking similarity weighted at 10% for urban property value comparison
+    final parkingDifference =
+        (firstProperty.availableParkingSpaces -
+                secondProperty.availableParkingSpaces)
+            .abs();
+    totalSimilarityScore += (1 - (parkingDifference / 3).clamp(0, 1)) * 0.1;
+
+    // Amenity overlap similarity weighted at 10% for lifestyle compatibility
+    final sharedAmenitiesCount = firstProperty.propertyAmenities
         .where(
-          (a1) => specs2.amenities.any(
-            (a2) =>
-                a1.toLowerCase().contains(a2.toLowerCase()) ||
-                a2.toLowerCase().contains(a1.toLowerCase()),
+          (firstPropertyAmenity) => secondProperty.propertyAmenities.any(
+            (secondPropertyAmenity) =>
+                firstPropertyAmenity.toLowerCase().contains(
+                  secondPropertyAmenity.toLowerCase(),
+                ) ||
+                secondPropertyAmenity.toLowerCase().contains(
+                  firstPropertyAmenity.toLowerCase(),
+                ),
           ),
         )
         .length;
 
-    final maxAmenities = [
-      specs1.amenities.length,
-      specs2.amenities.length,
+    final maximumAmenitiesCount = [
+      firstProperty.propertyAmenities.length,
+      secondProperty.propertyAmenities.length,
       1,
     ].reduce((a, b) => a > b ? a : b);
-    similarity += (commonAmenitiesCount / maxAmenities) * 0.1;
+    totalSimilarityScore +=
+        (sharedAmenitiesCount / maximumAmenitiesCount) * 0.1;
 
-    return similarity.clamp(0, 1);
+    return totalSimilarityScore.clamp(0, 1);
   }
 }
 
-/// Property value categories for comparison
-enum PropertyValueCategory {
-  basic,
-  mid,
+/// Property market value categories for pricing and comparison analysis
+/// Categories reflect Peru real estate market segments and consumer expectations
+enum PropertyMarketValueCategory {
+  economic,
+  midRange,
   premium;
 
-  String get displayName {
+  /// Provides localized category labels for market positioning display
+  String get marketSegmentLabel {
     switch (this) {
-      case PropertyValueCategory.basic:
-        return 'Básico';
-      case PropertyValueCategory.mid:
-        return 'Intermedio';
-      case PropertyValueCategory.premium:
+      case PropertyMarketValueCategory.economic:
+        return 'Económico';
+      case PropertyMarketValueCategory.midRange:
+        return 'Rango Medio';
+      case PropertyMarketValueCategory.premium:
         return 'Premium';
     }
   }

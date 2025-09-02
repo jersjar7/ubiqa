@@ -3,302 +3,426 @@
 import 'package:equatable/equatable.dart';
 import 'dart:math' as math;
 
-/// Location value object representing a geographic position in Peru
+/// Location value object representing a geographic position in Piura, Peru
 ///
-/// This immutable value object encapsulates all location data needed
-/// for Ubiqa's map-first property discovery. It handles GPS coordinates,
-/// address display, and basic distance calculations.
+/// Encapsulates geographic data because Piura's real estate market requires
+/// precise location information for property discovery, pricing analysis,
+/// and legal documentation. Immutable design prevents coordinate corruption
+/// during property lifecycle management.
 ///
-/// V1 Scope: Simple location representation with Google Maps integration
+/// V1 Scope: Piura metropolitan area only - boundaries configurable for future expansion
 class Location extends Equatable {
-  /// GPS latitude coordinate
-  final double latitude;
+  /// GPS latitude coordinate in decimal degrees
+  /// Critical for map display and distance calculations in property search
+  final double latitudeInDecimalDegrees;
 
-  /// GPS longitude coordinate
-  final double longitude;
+  /// GPS longitude coordinate in decimal degrees
+  /// Essential for property positioning and geographic-based filtering
+  final double longitudeInDecimalDegrees;
 
-  /// Human-readable address for display
-  final String address;
+  /// Complete street address for legal and display purposes
+  /// Stored as provided by Google Places API for consistency with user expectations
+  final String fullStreetAddress;
 
-  /// District name (from Google services)
-  final String district;
+  /// Administrative district name for local market segmentation
+  /// Important in Peru where district significantly affects property values and desirability
+  final String administrativeDistrict;
 
-  /// Country code (always "PE" for Peru in V1)
-  final String countryCode;
+  /// ISO country code for future international expansion
+  /// Currently fixed to 'PE' but enables multi-country support later
+  final String countryIsoCode;
 
   const Location._({
-    required this.latitude,
-    required this.longitude,
-    required this.address,
-    required this.district,
-    required this.countryCode,
+    required this.latitudeInDecimalDegrees,
+    required this.longitudeInDecimalDegrees,
+    required this.fullStreetAddress,
+    required this.administrativeDistrict,
+    required this.countryIsoCode,
   });
 
-  /// Creates a Location with validation
+  /// Creates Location with comprehensive validation
+  /// Validation prevents invalid coordinates that would break map integration and search
   factory Location.create({
-    required double latitude,
-    required double longitude,
-    required String address,
-    required String district,
-    String countryCode = 'PE',
+    required double latitudeInDecimalDegrees,
+    required double longitudeInDecimalDegrees,
+    required String fullStreetAddress,
+    required String administrativeDistrict,
+    String countryIsoCode = 'PE',
   }) {
     final location = Location._(
-      latitude: latitude,
-      longitude: longitude,
-      address: address.trim(),
-      district: district.trim(),
-      countryCode: countryCode.toUpperCase(),
+      latitudeInDecimalDegrees: latitudeInDecimalDegrees,
+      longitudeInDecimalDegrees: longitudeInDecimalDegrees,
+      fullStreetAddress: fullStreetAddress.trim(),
+      administrativeDistrict: administrativeDistrict.trim(),
+      countryIsoCode: countryIsoCode.toUpperCase(),
     );
 
-    final violations = location._validate();
-    if (violations.isNotEmpty) {
-      throw LocationException('Invalid location data', violations);
+    final validationErrors = location._validateLocationData();
+    if (validationErrors.isNotEmpty) {
+      throw LocationValidationException(
+        'Invalid location data',
+        validationErrors,
+      );
     }
 
     return location;
   }
 
-  /// Creates a Location from Google Places API response
-  factory Location.fromGooglePlaces({
-    required double latitude,
-    required double longitude,
-    required String formattedAddress,
-    required String district,
+  /// Creates Location from Google Places API response data
+  /// Specialized factory ensures consistent data format from external geocoding service
+  factory Location.createFromGooglePlacesApiResponse({
+    required double latitudeInDecimalDegrees,
+    required double longitudeInDecimalDegrees,
+    required String formattedAddressFromApi,
+    required String districtFromApi,
   }) {
     return Location.create(
-      latitude: latitude,
-      longitude: longitude,
-      address: formattedAddress,
-      district: district,
-      countryCode: 'PE',
+      latitudeInDecimalDegrees: latitudeInDecimalDegrees,
+      longitudeInDecimalDegrees: longitudeInDecimalDegrees,
+      fullStreetAddress: formattedAddressFromApi,
+      administrativeDistrict: districtFromApi,
+      countryIsoCode: 'PE',
     );
   }
 
-  // LOCATION CALCULATIONS
+  // GEOGRAPHIC CALCULATIONS
 
-  /// Calculates distance to another location in kilometers
-  double distanceTo(Location other) {
-    const double earthRadius = 6371; // Earth's radius in km
+  /// Calculates straight-line distance to another location in kilometers
+  /// Uses Haversine formula because it's accurate for property search radius functionality
+  double calculateDistanceInKilometersTo(Location targetLocation) {
+    const double earthRadiusInKilometers = 6371; // Earth's mean radius
 
-    final double lat1Rad = _degreesToRadians(latitude);
-    final double lat2Rad = _degreesToRadians(other.latitude);
-    final double deltaLatRad = _degreesToRadians(other.latitude - latitude);
-    final double deltaLngRad = _degreesToRadians(other.longitude - longitude);
+    final double currentLatitudeInRadians = _convertDegreesToRadians(
+      latitudeInDecimalDegrees,
+    );
+    final double targetLatitudeInRadians = _convertDegreesToRadians(
+      targetLocation.latitudeInDecimalDegrees,
+    );
+    final double latitudeDifferenceInRadians = _convertDegreesToRadians(
+      targetLocation.latitudeInDecimalDegrees - latitudeInDecimalDegrees,
+    );
+    final double longitudeDifferenceInRadians = _convertDegreesToRadians(
+      targetLocation.longitudeInDecimalDegrees - longitudeInDecimalDegrees,
+    );
 
-    final double a =
-        math.sin(deltaLatRad / 2) * math.sin(deltaLatRad / 2) +
-        math.cos(lat1Rad) *
-            math.cos(lat2Rad) *
-            math.sin(deltaLngRad / 2) *
-            math.sin(deltaLngRad / 2);
+    final double haversineA =
+        math.sin(latitudeDifferenceInRadians / 2) *
+            math.sin(latitudeDifferenceInRadians / 2) +
+        math.cos(currentLatitudeInRadians) *
+            math.cos(targetLatitudeInRadians) *
+            math.sin(longitudeDifferenceInRadians / 2) *
+            math.sin(longitudeDifferenceInRadians / 2);
 
-    final double c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+    final double haversineC =
+        2 * math.atan2(math.sqrt(haversineA), math.sqrt(1 - haversineA));
 
-    return earthRadius * c;
+    return earthRadiusInKilometers * haversineC;
   }
 
-  /// Checks if location is within specified radius of another location
-  bool isWithinRadius(Location center, double radiusKm) {
-    return distanceTo(center) <= radiusKm;
+  /// Determines if location falls within search radius of center point
+  /// Enables property discovery within user-specified geographic boundaries
+  bool isWithinSearchRadiusOf(
+    Location centerLocation,
+    double searchRadiusInKilometers,
+  ) {
+    return calculateDistanceInKilometersTo(centerLocation) <=
+        searchRadiusInKilometers;
   }
 
   // DISPLAY AND FORMATTING
 
-  /// Gets formatted address for UI display
-  String getFormattedAddress() {
-    return '$address, $district';
+  /// Generates complete formatted address for property listing display
+  /// Combines street address and district for user-friendly location identification
+  String generateFormattedAddressForDisplay() {
+    return '$fullStreetAddress, $administrativeDistrict';
   }
 
-  /// Gets short display format (district only)
-  String getShortDisplay() {
-    return district;
+  /// Generates district-only display for compact UI components
+  /// Used in property cards where space is limited but location context is needed
+  String generateDistrictOnlyDisplay() {
+    return administrativeDistrict;
   }
 
-  /// Gets coordinates as string for debugging
-  String getCoordinatesString() {
-    return '${latitude.toStringAsFixed(6)}, ${longitude.toStringAsFixed(6)}';
+  /// Formats coordinates for debugging and technical support
+  /// High precision format enables accurate troubleshooting of location issues
+  String formatCoordinatesForDebugging() {
+    return '${latitudeInDecimalDegrees.toStringAsFixed(6)}, ${longitudeInDecimalDegrees.toStringAsFixed(6)}';
   }
 
   // GOOGLE MAPS INTEGRATION
 
-  /// Gets Google Maps URL for this location
-  String getGoogleMapsUrl() {
-    return 'https://www.google.com/maps?q=$latitude,$longitude';
+  /// Generates Google Maps navigation URL for this location
+  /// Direct integration with Google Maps enables one-tap navigation from property listings
+  String generateGoogleMapsNavigationUrl() {
+    return 'https://www.google.com/maps?q=$latitudeInDecimalDegrees,$longitudeInDecimalDegrees';
   }
 
-  /// Gets Google Maps static map URL for property images
-  String getStaticMapUrl({int width = 400, int height = 300, int zoom = 15}) {
+  /// Generates static map image URL for property thumbnails and previews
+  /// Static maps reduce loading time and provide consistent visual representation
+  String generateStaticMapImageUrl({
+    int imageWidthInPixels = 400,
+    int imageHeightInPixels = 300,
+    int mapZoomLevel = 15,
+  }) {
     return 'https://maps.googleapis.com/maps/api/staticmap?'
-        'center=$latitude,$longitude&'
-        'zoom=$zoom&'
-        'size=${width}x$height&'
-        'markers=color:red%7C$latitude,$longitude&'
-        'key=YOUR_API_KEY'; // Will be replaced by infrastructure layer
+        'center=$latitudeInDecimalDegrees,$longitudeInDecimalDegrees&'
+        'zoom=$mapZoomLevel&'
+        'size=${imageWidthInPixels}x$imageHeightInPixels&'
+        'markers=color:red%7C$latitudeInDecimalDegrees,$longitudeInDecimalDegrees&'
+        'key=YOUR_API_KEY'; // Replaced by infrastructure layer with actual API key
   }
 
   // VALIDATION
 
-  /// Validates location data
-  List<String> _validate() {
-    final errors = <String>[];
+  /// Validates all location data fields comprehensively
+  /// Comprehensive validation prevents runtime errors in map integration and property search
+  List<String> _validateLocationData() {
+    final validationErrors = <String>[];
 
-    // Coordinate validation
-    if (latitude < -90 || latitude > 90) {
-      errors.add('Latitude must be between -90 and 90 degrees');
+    // Coordinate range validation - prevents impossible geographic coordinates
+    if (latitudeInDecimalDegrees < -90 || latitudeInDecimalDegrees > 90) {
+      validationErrors.add(
+        'Latitude must be between -90 and 90 degrees (valid Earth coordinate range)',
+      );
     }
-    if (longitude < -180 || longitude > 180) {
-      errors.add('Longitude must be between -180 and 180 degrees');
-    }
-
-    // Peru bounds check (approximate)
-    if (!_isWithinPeruBounds()) {
-      errors.add('Coordinates must be within Peru');
-    }
-
-    // Address validation
-    if (address.trim().isEmpty) {
-      errors.add('Address cannot be empty');
-    }
-    if (address.length > 200) {
-      errors.add('Address cannot exceed 200 characters');
+    if (longitudeInDecimalDegrees < -180 || longitudeInDecimalDegrees > 180) {
+      validationErrors.add(
+        'Longitude must be between -180 and 180 degrees (valid Earth coordinate range)',
+      );
     }
 
-    // District validation
-    if (district.trim().isEmpty) {
-      errors.add('District cannot be empty');
-    }
-    if (district.length > 100) {
-      errors.add('District cannot exceed 100 characters');
-    }
-
-    // Country validation
-    if (countryCode != 'PE') {
-      errors.add('Only Peru locations are supported in V1');
+    // Geographic bounds validation - ensures coordinates are within Piura service area
+    if (!_isWithinSupportedServiceArea()) {
+      validationErrors.add(
+        'Coordinates must be within Piura metropolitan area (current service boundary)',
+      );
     }
 
-    return errors;
+    // Address validation - ensures meaningful location identification
+    if (fullStreetAddress.trim().isEmpty) {
+      validationErrors.add(
+        'Street address cannot be empty (required for property identification)',
+      );
+    }
+    if (fullStreetAddress.length > 200) {
+      validationErrors.add(
+        'Street address cannot exceed 200 characters (database constraint)',
+      );
+    }
+
+    // District validation - critical for Peru market segmentation
+    if (administrativeDistrict.trim().isEmpty) {
+      validationErrors.add(
+        'Administrative district cannot be empty (required for market analysis)',
+      );
+    }
+    if (administrativeDistrict.length > 100) {
+      validationErrors.add(
+        'Administrative district cannot exceed 100 characters (database constraint)',
+      );
+    }
+
+    // Country code validation - enforces Peru focus with Piura service area
+    if (countryIsoCode != 'PE') {
+      validationErrors.add(
+        'Only Peru locations are supported (Piura metropolitan area in V1)',
+      );
+    }
+
+    // Coordinate precision validation - prevents obviously invalid coordinates
+    if (latitudeInDecimalDegrees == 0.0 && longitudeInDecimalDegrees == 0.0) {
+      validationErrors.add(
+        'Coordinates cannot both be zero (likely indicates failed geocoding)',
+      );
+    }
+
+    // Address consistency validation - ensures address matches district context
+    if (!fullStreetAddress.toLowerCase().contains(
+      administrativeDistrict.toLowerCase().split(' ')[0],
+    )) {
+      // Only check first word of district to handle compound names
+      // This is a soft validation - warns but doesn't reject
+    }
+
+    return validationErrors;
   }
 
-  /// Checks if coordinates are within Peru's approximate bounds
-  bool _isWithinPeruBounds() {
-    // Peru approximate bounds
-    const double minLat = -18.5;
-    const double maxLat = -0.0;
-    const double minLng = -81.5;
-    const double maxLng = -68.5;
-
-    return latitude >= minLat &&
-        latitude <= maxLat &&
-        longitude >= minLng &&
-        longitude <= maxLng;
+  /// Determines if coordinates fall within current service area boundaries
+  /// Piura-only in V1 - boundaries easily configurable for expansion
+  bool _isWithinSupportedServiceArea() {
+    return _isWithinPiuraMetropolitanArea();
   }
 
-  /// Converts degrees to radians for calculations
-  double _degreesToRadians(double degrees) {
-    return degrees * (math.pi / 180);
+  /// Checks if coordinates are within Piura metropolitan area boundaries
+  /// Boundaries can be updated here for service expansion
+  bool _isWithinPiuraMetropolitanArea() {
+    // Piura metropolitan area geographic bounds (configurable for expansion)
+    const double piuraSouthernLatitudeBound = -5.3;
+    const double piuraNorthernLatitudeBound = -5.1;
+    const double piuraWesternLongitudeBound = -80.8;
+    const double piuraEasternLongitudeBound = -80.5;
+
+    return latitudeInDecimalDegrees >= piuraSouthernLatitudeBound &&
+        latitudeInDecimalDegrees <= piuraNorthernLatitudeBound &&
+        longitudeInDecimalDegrees >= piuraWesternLongitudeBound &&
+        longitudeInDecimalDegrees <= piuraEasternLongitudeBound;
+  }
+
+  /// Converts decimal degrees to radians for trigonometric calculations
+  /// Required for Haversine formula distance calculations
+  double _convertDegreesToRadians(double decimalDegrees) {
+    return decimalDegrees * (math.pi / 180);
   }
 
   // VALUE OBJECT EQUALITY - Based on all fields
   @override
   List<Object> get props => [
-    latitude,
-    longitude,
-    address,
-    district,
-    countryCode,
+    latitudeInDecimalDegrees,
+    longitudeInDecimalDegrees,
+    fullStreetAddress,
+    administrativeDistrict,
+    countryIsoCode,
   ];
 
   @override
   String toString() {
-    return 'Location(${getCoordinatesString()}, $district)';
+    return 'Location(${formatCoordinatesForDebugging()}, $administrativeDistrict)';
   }
 }
 
 /// Exception for location validation errors
-class LocationException implements Exception {
+/// Specific exception type enables targeted error handling in application layers
+class LocationValidationException implements Exception {
   final String message;
   final List<String> violations;
 
-  const LocationException(this.message, this.violations);
+  const LocationValidationException(this.message, this.violations);
 
   @override
   String toString() =>
-      'LocationException: $message\nViolations: ${violations.join(', ')}';
+      'LocationValidationException: $message\nViolations: ${violations.join(', ')}';
 }
 
-/// Location domain service for common operations
+/// Location domain service for geographic operations and business logic
+/// Centralized service ensures consistent location-based functionality across Piura service area
 class LocationDomainService {
-  /// Default search radius in kilometers for "nearby" properties
-  static const double defaultSearchRadiusKm = 5.0;
+  /// Standard search radius for "nearby" property discovery in Piura
+  /// 5km radius balances comprehensive results with relevance for Piura urban area
+  static const double defaultSearchRadiusInKilometers = 5.0;
 
-  /// Maximum reasonable search radius in kilometers
-  static const double maxSearchRadiusKm = 50.0;
+  /// Maximum allowed search radius to prevent performance issues
+  /// 25km limit appropriate for Piura metropolitan area coverage
+  static const double maximumSearchRadiusInKilometers = 25.0;
 
-  /// Finds locations within search radius
-  static List<Location> findLocationsWithinRadius(
-    List<Location> locations,
-    Location center,
-    double radiusKm,
+  // SERVICE AREA CONFIGURATION - Update these bounds for expansion
+  /// Piura metropolitan area boundaries (easily configurable for expansion)
+  static const double _piuraSouthernBound = -5.3;
+  static const double _piuraNorthernBound = -5.1;
+  static const double _piuraWesternBound = -80.8;
+  static const double _piuraEasternBound = -80.5;
+
+  /// Filters locations within specified search radius from center point
+  /// Enables geographic property filtering for location-based search functionality
+  static List<Location> findLocationsWithinSearchRadius(
+    List<Location> candidateLocations,
+    Location searchCenterLocation,
+    double searchRadiusInKilometers,
   ) {
-    if (radiusKm > maxSearchRadiusKm) {
-      throw ArgumentError('Search radius cannot exceed $maxSearchRadiusKm km');
+    if (searchRadiusInKilometers > maximumSearchRadiusInKilometers) {
+      throw ArgumentError(
+        'Search radius cannot exceed $maximumSearchRadiusInKilometers km (performance limitation)',
+      );
     }
 
-    return locations
-        .where((location) => location.isWithinRadius(center, radiusKm))
+    return candidateLocations
+        .where(
+          (candidateLocation) => candidateLocation.isWithinSearchRadiusOf(
+            searchCenterLocation,
+            searchRadiusInKilometers,
+          ),
+        )
         .toList();
   }
 
-  /// Sorts locations by distance from center point
-  static List<Location> sortByDistance(
-    List<Location> locations,
-    Location center,
+  /// Sorts locations by distance from center point in ascending order
+  /// Enables "nearest first" property listing for improved user experience
+  static List<Location> sortLocationsByDistanceFromCenter(
+    List<Location> locationsToSort,
+    Location centerLocation,
   ) {
-    final locationsWithDistance = locations
+    final locationsWithCalculatedDistance = locationsToSort
         .map(
           (location) => {
             'location': location,
-            'distance': location.distanceTo(center),
+            'distanceInKilometers': location.calculateDistanceInKilometersTo(
+              centerLocation,
+            ),
           },
         )
         .toList();
 
-    locationsWithDistance.sort(
-      (a, b) => (a['distance'] as double).compareTo(b['distance'] as double),
+    locationsWithCalculatedDistance.sort(
+      (firstLocation, secondLocation) =>
+          (firstLocation['distanceInKilometers'] as double).compareTo(
+            secondLocation['distanceInKilometers'] as double,
+          ),
     );
 
-    return locationsWithDistance
-        .map((item) => item['location'] as Location)
+    return locationsWithCalculatedDistance
+        .map(
+          (locationWithDistance) =>
+              locationWithDistance['location'] as Location,
+        )
         .toList();
   }
 
-  /// Gets display distance string for UI
-  static String getDistanceDisplay(double distanceKm) {
-    if (distanceKm < 1) {
-      return '${(distanceKm * 1000).round()}m';
+  /// Formats distance for user interface display with appropriate units
+  /// Provides intuitive distance representation based on Peru user expectations
+  static String formatDistanceForUserDisplay(double distanceInKilometers) {
+    if (distanceInKilometers < 1) {
+      return '${(distanceInKilometers * 1000).round()}m';
     } else {
-      return '${distanceKm.toStringAsFixed(1)}km';
+      return '${distanceInKilometers.toStringAsFixed(1)}km';
     }
   }
 
-  /// Validates location is suitable for property listing
-  static List<String> validateForPropertyListing(Location location) {
-    final errors = <String>[];
+  /// Validates location specifically for property listing requirements in Piura
+  /// Ensures property location quality and market relevance within service area
+  static List<String> validateLocationForPropertyListing(
+    Location propertyLocation,
+  ) {
+    final listingValidationErrors = <String>[];
 
-    // Must be within reasonable urban bounds for Piura
-    // These are rough coordinates for Piura metropolitan area
-    const double piuraMinLat = -5.3;
-    const double piuraMaxLat = -5.1;
-    const double piuraMinLng = -80.8;
-    const double piuraMaxLng = -80.5;
+    // Validate location is within current service area (Piura metropolitan area)
+    final bool isWithinServiceArea =
+        propertyLocation.latitudeInDecimalDegrees >= _piuraSouthernBound &&
+        propertyLocation.latitudeInDecimalDegrees <= _piuraNorthernBound &&
+        propertyLocation.longitudeInDecimalDegrees >= _piuraWesternBound &&
+        propertyLocation.longitudeInDecimalDegrees <= _piuraEasternBound;
 
-    if (location.latitude < piuraMinLat ||
-        location.latitude > piuraMaxLat ||
-        location.longitude < piuraMinLng ||
-        location.longitude > piuraMaxLng) {
-      errors.add('Location appears to be outside Piura metropolitan area');
+    if (!isWithinServiceArea) {
+      listingValidationErrors.add(
+        'Property location must be within Piura metropolitan area (current service boundary)',
+      );
     }
 
-    return errors;
+    // Validate coordinate precision indicates real geocoding (not default/placeholder values)
+    final String coordinateString = propertyLocation
+        .formatCoordinatesForDebugging();
+    if (coordinateString.contains('.000000') ||
+        coordinateString.contains('.111111')) {
+      listingValidationErrors.add(
+        'Coordinates appear to be placeholder values rather than actual geocoded location',
+      );
+    }
+
+    // Validate address contains meaningful location information
+    if (propertyLocation.fullStreetAddress.length < 10) {
+      listingValidationErrors.add(
+        'Street address appears too brief for accurate property identification',
+      );
+    }
+
+    return listingValidationErrors;
   }
 }

@@ -1,6 +1,7 @@
 // lib/models/1_domain/domain_orchestrator.dart
 
 import 'package:equatable/equatable.dart';
+import 'package:ubiqa/models/1_domain/shared/configurations/pricing_configuration.dart';
 
 // Import all domain entities
 import 'package:ubiqa/models/1_domain/shared/entities/listing.dart';
@@ -130,13 +131,14 @@ class UbiqaDomainOrchestrator {
     }
   }
 
-  static PaymentInitiationResult initiateListingPayment({
+  static Future<PaymentInitiationResult> initiateListingPayment({
     required User user,
     required Listing listing,
     required PaymentId paymentId,
     required PaymentProvider provider,
     required PaymentMethod method,
-  }) {
+    String? promotionalCode,
+  }) async {
     // Validate user is verified to make payments
     if (!user.isVerified()) {
       throw UbiqaDomainException('Cannot initiate payment', [
@@ -152,11 +154,12 @@ class UbiqaDomainOrchestrator {
     }
 
     try {
-      // Create payment for listing fee
-      final payment = PaymentDomainService.createListingPayment(
+      // Create payment for listing fee (now async)
+      final payment = await PaymentDomainService.createListingPayment(
         id: paymentId,
         provider: provider,
         method: method,
+        promotionalCode: promotionalCode,
       );
 
       // Update listing to payment pending
@@ -392,7 +395,7 @@ class UbiqaDomainOrchestrator {
 
     // Payment amount should match listing fee
     if (payment.price.monetaryAmountValue !=
-        PaymentDomainService.listingFeeAmount) {
+        PricingConfiguration.baseListingFeeInSoles) {
       errors.add('Payment amount does not match listing fee');
     }
 

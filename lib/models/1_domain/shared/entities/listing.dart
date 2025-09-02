@@ -7,6 +7,9 @@ import '../value_objects/price.dart';
 import '../value_objects/contact_info.dart';
 import '../value_objects/media.dart';
 
+// Import pricing configuration
+import '../configurations/pricing_configuration.dart';
+
 /// Strongly-typed identifier for Listing entities
 class ListingId extends Equatable {
   final String value;
@@ -136,9 +139,11 @@ class Listing extends Equatable {
 
   // LISTING LIFECYCLE METHODS
 
-  Listing activate() {
+  Listing activate({int? customDurationDays}) {
     final now = DateTime.now();
-    final expiration = now.add(const Duration(days: 30));
+    final durationDays =
+        customDurationDays ?? PricingConfiguration.standardListingDurationDays;
+    final expiration = now.add(Duration(days: durationDays));
 
     return copyWith(
       status: ListingStatus.active,
@@ -294,8 +299,10 @@ class Listing extends Equatable {
     // Duration validation
     if (publishedAt != null && expiresAt != null) {
       final duration = expiresAt!.difference(publishedAt!);
-      if (duration.inDays != 30) {
-        errors.add('Listing duration must be exactly 30 days');
+      if (duration.inDays != PricingConfiguration.standardListingDurationDays) {
+        errors.add(
+          'Listing duration must be exactly ${PricingConfiguration.standardListingDurationDays} days',
+        );
       }
     }
 
@@ -326,9 +333,6 @@ class ListingDomainException implements Exception {
 
 /// Listing domain service for validation and operations
 class ListingDomainService {
-  static const int listingFeeInSoles = 19;
-  static const int listingDurationDays = 30;
-
   static Listing createListingWithValidation({
     required ListingId id,
     required String title,
@@ -354,13 +358,16 @@ class ListingDomainService {
     return listing;
   }
 
-  static Listing processPaymentConfirmation(Listing listing) {
+  static Listing processPaymentConfirmation(
+    Listing listing, {
+    int? customDurationDays,
+  }) {
     if (listing.status != ListingStatus.paymentPending) {
       throw ListingDomainException('Cannot confirm payment', [
         'Listing must be in payment pending status',
       ]);
     }
-    return listing.activate();
+    return listing.activate(customDurationDays: customDurationDays);
   }
 
   static Listing updateListingContent({

@@ -5,6 +5,9 @@ import 'package:equatable/equatable.dart';
 // Import value objects
 import '../value_objects/price.dart';
 
+// Import pricing configuration
+import '../configurations/pricing_configuration.dart';
+
 /// Strongly-typed identifier for Payment entities
 class PaymentId extends Equatable {
   final String value;
@@ -379,7 +382,6 @@ class PaymentDomainException implements Exception {
 
 /// Payment domain service for validation and operations
 class PaymentDomainService {
-  static const double listingFeeAmount = 19.0;
   static const String defaultCurrency = 'PEN';
   static const Duration defaultExpiryTime = Duration(hours: 2);
 
@@ -410,7 +412,31 @@ class PaymentDomainService {
     return payment;
   }
 
-  static Payment createListingPayment({
+  /// Creates listing payment with current pricing configuration
+  static Future<Payment> createListingPayment({
+    required PaymentId id,
+    required PaymentProvider provider,
+    required PaymentMethod method,
+    String? referenceCode,
+    String? promotionalCode,
+  }) async {
+    // Get current pricing (with potential promotional pricing)
+    final listingPricing = await PricingConfiguration.getCurrentListingPricing(
+      promotionalCode: promotionalCode,
+    );
+
+    return createPaymentWithValidation(
+      id: id,
+      price: Price.createInSoles(listingPricing.feeAmount),
+      provider: provider,
+      method: method,
+      description: listingPricing.generatePricingDescription(),
+      referenceCode: referenceCode,
+    );
+  }
+
+  /// Creates listing payment with standard pricing (synchronous version)
+  static Payment createStandardListingPayment({
     required PaymentId id,
     required PaymentProvider provider,
     required PaymentMethod method,
@@ -418,10 +444,11 @@ class PaymentDomainService {
   }) {
     return createPaymentWithValidation(
       id: id,
-      price: Price.createInSoles(listingFeeAmount),
+      price: Price.createInSoles(PricingConfiguration.baseListingFeeInSoles),
       provider: provider,
       method: method,
-      description: 'Publicación de propiedad (30 días)',
+      description:
+          'Publicación de propiedad (${PricingConfiguration.standardListingDurationDays} días)',
       referenceCode: referenceCode,
     );
   }

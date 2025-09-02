@@ -3,27 +3,20 @@
 import 'package:equatable/equatable.dart';
 
 // Import all domain entities
-import 'user.dart';
-import 'property.dart';
-import 'listing.dart';
-import 'payment.dart';
+import 'package:ubiqa/models/1_domain/shared/entities/listing.dart';
+import 'package:ubiqa/models/1_domain/shared/entities/payment.dart';
+import 'package:ubiqa/models/1_domain/shared/entities/property.dart';
+import 'package:ubiqa/models/1_domain/shared/entities/user.dart';
+
+// Import value objects
+import 'package:ubiqa/models/1_domain/shared/value_objects/contact_info.dart';
+import 'package:ubiqa/models/1_domain/shared/value_objects/media.dart';
+import 'package:ubiqa/models/1_domain/shared/value_objects/price.dart';
 
 /// Domain Orchestrator handles cross-entity business logic and workflows
-///
-/// This service coordinates between User, Property, Listing, and Payment entities
-/// to implement complex business operations that span multiple domain concepts.
-///
-/// Key Responsibilities:
-/// - Listing creation workflows (User + Property + Payment)
-/// - Payment processing workflows (Payment + Listing activation)
-/// - Cross-entity validation and business rules
-/// - User capability determination across entities
 class UbiqaDomainOrchestrator {
   // LISTING CREATION WORKFLOWS
 
-  /// Determines if a user can create a listing for a specific property
-  ///
-  /// This encapsulates the core business rules for listing creation eligibility
   static UserListingEligibility checkUserListingEligibility({
     required User user,
     required Property property,
@@ -35,7 +28,7 @@ class UbiqaDomainOrchestrator {
 
     // User must be verified to create listings
     if (!user.isVerified()) {
-      if (user.phoneNumber == null) {
+      if (user.contactInfo == null) {
         return UserListingEligibility.requiresPhone();
       } else {
         return UserListingEligibility.requiresVerification();
@@ -49,32 +42,18 @@ class UbiqaDomainOrchestrator {
       );
     }
 
-    // Property must have valid business data
-    final propertyErrors = property.validateBusinessRules();
-    if (propertyErrors.isNotEmpty) {
-      return UserListingEligibility.ineligible(
-        'Property data is invalid: ${propertyErrors.first}',
-      );
-    }
-
     return UserListingEligibility.eligible();
   }
 
-  /// Creates a new listing for a user and property with business validation
-  ///
-  /// This implements the complete listing creation workflow including
-  /// cross-entity validation and business rule enforcement
   static ListingCreationResult createListingForUserAndProperty({
     required User user,
     required Property property,
     required ListingId listingId,
     required String title,
     required String description,
-    required double priceAmount,
-    required String priceCurrency,
-    String? contactPhone,
-    String? contactHours,
-    List<String>? photoUrls,
+    required Price price,
+    ContactInfo? contactInfo,
+    Media? media,
   }) {
     // Check eligibility first
     final eligibility = checkUserListingEligibility(
@@ -93,11 +72,9 @@ class UbiqaDomainOrchestrator {
         id: listingId,
         title: title,
         description: description,
-        priceAmount: priceAmount,
-        priceCurrency: priceCurrency,
-        contactPhone: contactPhone ?? user.phoneNumber,
-        contactHours: contactHours,
-        photoUrls: photoUrls,
+        price: price,
+        contactInfo: contactInfo ?? user.contactInfo,
+        media: media,
       );
 
       // Cross-entity business validation
@@ -128,10 +105,6 @@ class UbiqaDomainOrchestrator {
     }
   }
 
-  /// Initiates payment for a user's listing
-  ///
-  /// Creates the payment entity and establishes the connection between
-  /// User, Listing, and Payment for the subscription workflow
   static PaymentInitiationResult initiateListingPayment({
     required User user,
     required Listing listing,
@@ -139,7 +112,7 @@ class UbiqaDomainOrchestrator {
     required PaymentProvider provider,
     required PaymentMethod method,
   }) {
-    // Validate user owns the listing context (this would normally check user ID matching)
+    // Validate user is verified to make payments
     if (!user.isVerified()) {
       throw UbiqaDomainException('Cannot initiate payment', [
         'User must be verified to make payments',
@@ -178,10 +151,6 @@ class UbiqaDomainOrchestrator {
 
   // PAYMENT PROCESSING WORKFLOWS
 
-  /// Processes payment completion and activates the associated listing
-  ///
-  /// This implements the core subscription activation workflow when
-  /// payment is successfully completed by the payment provider
   static PaymentProcessingResult processPaymentCompletionForListing({
     required Payment payment,
     required Listing listing,
@@ -228,7 +197,6 @@ class UbiqaDomainOrchestrator {
     }
   }
 
-  /// Processes payment failure and updates listing accordingly
   static PaymentProcessingResult processPaymentFailureForListing({
     required Payment payment,
     required Listing listing,
@@ -257,21 +225,14 @@ class UbiqaDomainOrchestrator {
 
   // USER CAPABILITY MANAGEMENT
 
-  /// Determines comprehensive user capabilities across the platform
-  ///
-  /// This consolidates all user capability checks in one place for
-  /// consistent business rule application across the application
   static UserPlatformCapabilities getUserCapabilities(User user) {
     return UserPlatformCapabilities(
-      canSearch: user.isActive, // Any active user can search
-      canContact:
-          user.isActive && user.isVerified(), // Only verified users can contact
-      canCreateListings:
-          user.isActive && user.isVerified(), // Only verified users can publish
-      canMakePayments:
-          user.isActive && user.isVerified(), // Only verified users can pay
-      canEditProfile: user.isActive, // Any active user can edit profile
-      needsPhoneVerification: user.phoneNumber != null && !user.isPhoneVerified,
+      canSearch: user.isActive,
+      canContact: user.isActive && user.isVerified(),
+      canCreateListings: user.isActive && user.isVerified(),
+      canMakePayments: user.isActive && user.isVerified(),
+      canEditProfile: user.isActive,
+      needsPhoneVerification: user.contactInfo != null && !user.isVerified(),
       hasCompleteProfile: user.hasCompleteProfile(),
       isNewUser: user.isNewUser(),
     );
@@ -279,14 +240,10 @@ class UbiqaDomainOrchestrator {
 
   // LISTING MANAGEMENT WORKFLOWS
 
-  /// Checks if a user can edit a specific listing
-  ///
-  /// In a full implementation, this would check user ownership via repository,
-  /// but for domain layer we focus on business rule validation
   static bool canUserEditListing({
     required User user,
     required Listing listing,
-    bool userOwnsListing = true, // This would be determined by repository layer
+    bool userOwnsListing = true,
   }) {
     // User must be active and verified
     if (!user.isActive || !user.isVerified()) {
@@ -302,18 +259,15 @@ class UbiqaDomainOrchestrator {
     return listing.canBeEdited();
   }
 
-  /// Updates listing content with cross-entity validation
   static ListingUpdateResult updateUserListingContent({
     required User user,
     required Listing listing,
     bool userOwnsListing = true,
     String? title,
     String? description,
-    double? priceAmount,
-    String? priceCurrency,
-    String? contactPhone,
-    String? contactHours,
-    List<String>? photoUrls,
+    Price? price,
+    ContactInfo? contactInfo,
+    Media? media,
   }) {
     // Check if user can edit
     if (!canUserEditListing(
@@ -325,18 +279,16 @@ class UbiqaDomainOrchestrator {
     }
 
     try {
-      // Use contact phone from user if not specified
-      final effectiveContactPhone = contactPhone ?? user.phoneNumber;
+      // Use contact info from user if not specified
+      final effectiveContactInfo = contactInfo ?? user.contactInfo;
 
       final updatedListing = ListingDomainService.updateListingContent(
         listing: listing,
         title: title,
         description: description,
-        priceAmount: priceAmount,
-        priceCurrency: priceCurrency,
-        contactPhone: effectiveContactPhone,
-        contactHours: contactHours,
-        photoUrls: photoUrls,
+        price: price,
+        contactInfo: effectiveContactInfo,
+        media: media,
       );
 
       return ListingUpdateResult.success(updatedListing);
@@ -353,7 +305,6 @@ class UbiqaDomainOrchestrator {
 
   // CROSS-ENTITY VALIDATION HELPERS
 
-  /// Validates listing data against user and property context
   static List<String> _validateListingAgainstUserAndProperty({
     required User user,
     required Property property,
@@ -361,10 +312,13 @@ class UbiqaDomainOrchestrator {
   }) {
     final errors = <String>[];
 
-    // Contact phone should match user's verified phone
-    if (listing.contactPhone != null && user.phoneNumber != null) {
-      final userPhone = user.phoneNumber!.replaceAll(RegExp(r'[^\d]'), '');
-      final listingPhone = listing.contactPhone!.replaceAll(
+    // Contact info should match user's verified contact info
+    if (listing.contactInfo != null && user.contactInfo != null) {
+      final userPhone = user.contactInfo!.whatsappNumber.replaceAll(
+        RegExp(r'[^\d]'),
+        '',
+      );
+      final listingPhone = listing.contactInfo!.whatsappNumber.replaceAll(
         RegExp(r'[^\d]'),
         '',
       );
@@ -376,12 +330,12 @@ class UbiqaDomainOrchestrator {
 
     // Listing price should be reasonable for property type and size
     if (property.propertyType == PropertyType.terreno) {
-      if (listing.priceAmount < 10000) {
+      if (listing.price.amount < 10000) {
         errors.add('Terreno price seems unusually low');
       }
     } else {
       // Rough price per m² validation
-      final pricePerM2 = listing.priceAmount / property.areaM2;
+      final pricePerM2 = listing.price.amount / property.specs.areaM2;
       if (pricePerM2 < 100) {
         errors.add('Price per square meter seems unusually low');
       }
@@ -390,18 +344,9 @@ class UbiqaDomainOrchestrator {
       }
     }
 
-    // Currency should match operation type conventions
-    if (property.operationType == OperationType.venta &&
-        listing.priceCurrency == 'PEN' &&
-        listing.priceAmount > 100000) {
-      // Sales over 100k soles might be better in USD
-      // This is a warning, not an error
-    }
-
     return errors;
   }
 
-  /// Validates payment and listing compatibility
   static List<String> _validatePaymentListingCompatibility(
     Payment payment,
     Listing listing,
@@ -419,7 +364,7 @@ class UbiqaDomainOrchestrator {
     }
 
     // Payment amount should match listing fee
-    if (payment.amount != PaymentDomainService.listingFeeAmount) {
+    if (payment.price.amount != PaymentDomainService.listingFeeAmount) {
       errors.add('Payment amount does not match listing fee');
     }
 
@@ -432,9 +377,8 @@ class UbiqaDomainOrchestrator {
   }
 }
 
-// RESULT VALUE OBJECTS
+// RESULT VALUE OBJECTS (unchanged)
 
-/// Result of user listing eligibility check
 class UserListingEligibility extends Equatable {
   final bool isEligible;
   final String? reason;
@@ -474,10 +418,8 @@ class UserListingEligibility extends Equatable {
   List<Object?> get props => [isEligible, reason, requirement];
 }
 
-/// Requirements for listing creation
 enum ListingRequirement { phoneNumber, phoneVerification }
 
-/// Result of listing creation operation
 class ListingCreationResult extends Equatable {
   final bool isSuccess;
   final Listing? listing;
@@ -514,7 +456,6 @@ class ListingCreationResult extends Equatable {
   List<Object?> get props => [isSuccess, listing, errorMessage, violations];
 }
 
-/// Result of payment initiation
 class PaymentInitiationResult extends Equatable {
   final bool isSuccess;
   final Payment? payment;
@@ -560,7 +501,6 @@ class PaymentInitiationResult extends Equatable {
   ];
 }
 
-/// Result of payment processing
 class PaymentProcessingResult extends Equatable {
   final bool isSuccess;
   final Payment? payment;
@@ -606,7 +546,6 @@ class PaymentProcessingResult extends Equatable {
   ];
 }
 
-/// Result of listing update operation
 class ListingUpdateResult extends Equatable {
   final bool isSuccess;
   final Listing? updatedListing;
@@ -645,7 +584,6 @@ class ListingUpdateResult extends Equatable {
   ];
 }
 
-/// Comprehensive user capabilities across the platform
 class UserPlatformCapabilities extends Equatable {
   final bool canSearch;
   final bool canContact;
@@ -680,7 +618,6 @@ class UserPlatformCapabilities extends Equatable {
   ];
 }
 
-/// Domain exception for orchestrator operations
 class UbiqaDomainException implements Exception {
   final String message;
   final List<String> violations;

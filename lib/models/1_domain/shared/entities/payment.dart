@@ -2,13 +2,15 @@
 
 import 'package:equatable/equatable.dart';
 
+// Import value objects
+import '../value_objects/price.dart';
+
 /// Strongly-typed identifier for Payment entities
 class PaymentId extends Equatable {
   final String value;
 
   const PaymentId._(this.value);
 
-  /// Creates PaymentId from string with validation
   factory PaymentId.fromString(String id) {
     if (id.trim().isEmpty) {
       throw ArgumentError('PaymentId cannot be empty');
@@ -25,28 +27,14 @@ class PaymentId extends Equatable {
 
 /// Payment status for transaction lifecycle tracking
 enum PaymentStatus {
-  /// Payment created but not yet processed
   pending,
-
-  /// Payment is being processed by payment provider
   processing,
-
-  /// Payment completed successfully
   completed,
-
-  /// Payment failed due to insufficient funds, declined card, etc.
   failed,
-
-  /// Payment was cancelled by user before completion
   cancelled,
-
-  /// Payment was refunded after completion
   refunded,
-
-  /// Payment expired without completion
   expired;
 
-  /// User-friendly status labels for UI
   String get displayName {
     switch (this) {
       case PaymentStatus.pending:
@@ -66,10 +54,7 @@ enum PaymentStatus {
     }
   }
 
-  /// Whether this status represents a successful payment
   bool get isSuccess => this == PaymentStatus.completed;
-
-  /// Whether this status represents a final state (no further changes expected)
   bool get isFinal => [
     PaymentStatus.completed,
     PaymentStatus.failed,
@@ -77,8 +62,6 @@ enum PaymentStatus {
     PaymentStatus.refunded,
     PaymentStatus.expired,
   ].contains(this);
-
-  /// Whether this status allows for retry attempts
   bool get canRetry => [
     PaymentStatus.failed,
     PaymentStatus.cancelled,
@@ -90,7 +73,6 @@ enum PaymentStatus {
 enum PaymentProvider {
   culqi;
 
-  /// User-friendly provider names for UI
   String get displayName {
     switch (this) {
       case PaymentProvider.culqi:
@@ -98,7 +80,6 @@ enum PaymentProvider {
     }
   }
 
-  /// Payment methods supported by this provider
   List<PaymentMethod> get supportedMethods {
     switch (this) {
       case PaymentProvider.culqi:
@@ -114,7 +95,6 @@ enum PaymentMethod {
   plin,
   bankTransfer;
 
-  /// User-friendly method names for UI
   String get displayName {
     switch (this) {
       case PaymentMethod.card:
@@ -128,7 +108,6 @@ enum PaymentMethod {
     }
   }
 
-  /// Whether this method requires immediate processing
   bool get isInstant {
     switch (this) {
       case PaymentMethod.card:
@@ -142,70 +121,26 @@ enum PaymentMethod {
 }
 
 /// Payment entity representing a financial transaction in the platform
-///
-/// Business Concept: A Payment represents a financial transaction where
-/// users pay for listing subscriptions. Each payment tracks the complete
-/// transaction lifecycle from initiation to completion or failure.
-///
-/// Core Responsibilities:
-/// - Transaction lifecycle management
-/// - Payment provider integration
-/// - Amount and currency handling
-/// - Receipt and reference tracking
-/// - Payment validation and security
 class Payment extends Equatable {
-  /// Unique identifier for this payment
   final PaymentId id;
-
-  /// Amount being paid in the specified currency
-  final double amount;
-
-  /// Currency for the payment (PEN for V1)
-  final String currency;
-
-  /// Current status of the payment
+  final Price price;
   final PaymentStatus status;
-
-  /// Payment provider used for processing
   final PaymentProvider provider;
-
-  /// Payment method chosen by user
   final PaymentMethod method;
-
-  /// External transaction ID from payment provider
   final String? providerTransactionId;
-
-  /// Reference code for customer service and tracking
   final String referenceCode;
-
-  /// Description of what the payment is for
   final String description;
-
-  /// When payment was created
   final DateTime createdAt;
-
-  /// When payment was last updated
   final DateTime updatedAt;
-
-  /// When payment was completed (if successful)
   final DateTime? completedAt;
-
-  /// When payment expires if not completed
   final DateTime? expiresAt;
-
-  /// Payment provider response data (JSON string)
   final String? providerResponse;
-
-  /// Error message if payment failed
   final String? errorMessage;
-
-  /// Receipt URL or data for successful payments
   final String? receiptData;
 
   const Payment._({
     required this.id,
-    required this.amount,
-    required this.currency,
+    required this.price,
     required this.status,
     required this.provider,
     required this.method,
@@ -224,8 +159,7 @@ class Payment extends Equatable {
   /// Factory: Create new payment
   factory Payment.create({
     required PaymentId id,
-    required double amount,
-    required String currency,
+    required Price price,
     required PaymentProvider provider,
     required PaymentMethod method,
     required String description,
@@ -235,8 +169,7 @@ class Payment extends Equatable {
     final now = DateTime.now();
     return Payment._(
       id: id,
-      amount: amount,
-      currency: currency.toUpperCase(),
+      price: price,
       status: PaymentStatus.pending,
       provider: provider,
       method: method,
@@ -244,9 +177,7 @@ class Payment extends Equatable {
       description: description.trim(),
       createdAt: now,
       updatedAt: now,
-      expiresAt:
-          expiresAt ??
-          now.add(const Duration(hours: 2)), // Default 2-hour expiry
+      expiresAt: expiresAt ?? now.add(const Duration(hours: 2)),
     );
   }
 
@@ -263,8 +194,7 @@ class Payment extends Equatable {
   }) {
     return Payment._(
       id: id,
-      amount: amount,
-      currency: currency,
+      price: price,
       status: status ?? this.status,
       provider: provider,
       method: method,
@@ -284,7 +214,6 @@ class Payment extends Equatable {
 
   // PAYMENT LIFECYCLE METHODS
 
-  /// Marks payment as processing with provider transaction ID
   Payment markAsProcessing(String providerTransactionId) {
     return copyWith(
       status: PaymentStatus.processing,
@@ -292,7 +221,6 @@ class Payment extends Equatable {
     );
   }
 
-  /// Completes payment successfully
   Payment complete({String? receiptData, String? providerResponse}) {
     final now = DateTime.now();
     return copyWith(
@@ -304,7 +232,6 @@ class Payment extends Equatable {
     );
   }
 
-  /// Marks payment as failed with error details
   Payment fail({required String errorMessage, String? providerResponse}) {
     return copyWith(
       status: PaymentStatus.failed,
@@ -313,17 +240,14 @@ class Payment extends Equatable {
     );
   }
 
-  /// Cancels payment (user-initiated)
   Payment cancel() {
     return copyWith(status: PaymentStatus.cancelled);
   }
 
-  /// Expires payment due to timeout
   Payment expire() {
     return copyWith(status: PaymentStatus.expired);
   }
 
-  /// Processes refund for completed payment
   Payment refund({
     required String providerTransactionId,
     String? providerResponse,
@@ -343,65 +267,43 @@ class Payment extends Equatable {
 
   // PAYMENT STATUS QUERIES
 
-  /// Whether payment is completed successfully
-  bool isCompleted() {
-    return status == PaymentStatus.completed;
-  }
+  bool isCompleted() => status == PaymentStatus.completed;
+  bool isFailed() => status == PaymentStatus.failed;
+  bool isPending() =>
+      status == PaymentStatus.pending || status == PaymentStatus.processing;
+  bool isFinal() => status.isFinal;
+  bool canRetry() => status.canRetry;
 
-  /// Whether payment has failed
-  bool isFailed() {
-    return status == PaymentStatus.failed;
-  }
-
-  /// Whether payment is still pending or processing
-  bool isPending() {
-    return status == PaymentStatus.pending ||
-        status == PaymentStatus.processing;
-  }
-
-  /// Whether payment is in a final state
-  bool isFinal() {
-    return status.isFinal;
-  }
-
-  /// Whether payment can be retried
-  bool canRetry() {
-    return status.canRetry;
-  }
-
-  /// Whether payment has expired
   bool isExpired() {
     if (expiresAt == null) return false;
     return DateTime.now().isAfter(expiresAt!) && !isFinal();
   }
 
-  // PAYMENT CALCULATIONS
+  // DELEGATION TO VALUE OBJECTS
 
   /// Gets formatted amount for display
   String getFormattedAmount() {
-    if (currency == 'USD') {
-      return 'US\$ ${amount.toStringAsFixed(2)}';
-    } else if (currency == 'PEN') {
-      return 'S/ ${amount.toStringAsFixed(2)}';
-    } else {
-      return '$currency ${amount.toStringAsFixed(2)}';
-    }
+    return price.getFormattedPrice();
   }
 
-  /// Gets payment processing time if completed
+  /// Gets compact amount format
+  String getCompactAmount() {
+    return price.getCompactPrice();
+  }
+
+  // PAYMENT CALCULATIONS
+
   Duration? getProcessingTime() {
     if (completedAt == null) return null;
     return completedAt!.difference(createdAt);
   }
 
-  /// Gets time remaining until expiration
   Duration? getTimeUntilExpiry() {
     if (expiresAt == null || isFinal()) return null;
     final remaining = expiresAt!.difference(DateTime.now());
     return remaining.isNegative ? Duration.zero : remaining;
   }
 
-  /// Checks if payment is expiring soon (within 30 minutes)
   bool isExpiringSoon() {
     final timeLeft = getTimeUntilExpiry();
     return timeLeft != null && timeLeft.inMinutes <= 30;
@@ -409,22 +311,8 @@ class Payment extends Equatable {
 
   // VALIDATION
 
-  /// Validates payment data against business rules
   List<String> validateBusinessRules() {
     final errors = <String>[];
-
-    // Amount validation
-    if (amount <= 0) {
-      errors.add('Payment amount must be greater than 0');
-    }
-    if (amount > 100000) {
-      errors.add('Payment amount cannot exceed 100,000');
-    }
-
-    // Currency validation
-    if (!['PEN', 'USD'].contains(currency)) {
-      errors.add('Currency must be PEN or USD');
-    }
 
     // Reference code validation
     if (referenceCode.length < 6 || referenceCode.length > 20) {
@@ -461,7 +349,6 @@ class Payment extends Equatable {
     return errors;
   }
 
-  /// Generates unique reference code for payment tracking
   static String _generateReferenceCode() {
     final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
     final random = (timestamp.hashCode % 10000).toString().padLeft(4, '0');
@@ -492,20 +379,13 @@ class PaymentDomainException implements Exception {
 
 /// Payment domain service for validation and operations
 class PaymentDomainService {
-  /// V1 listing fee amount
   static const double listingFeeAmount = 19.0;
-
-  /// V1 default currency
   static const String defaultCurrency = 'PEN';
-
-  /// Default payment expiry time
   static const Duration defaultExpiryTime = Duration(hours: 2);
 
-  /// Creates payment with validation
   static Payment createPaymentWithValidation({
     required PaymentId id,
-    required double amount,
-    required String currency,
+    required Price price,
     required PaymentProvider provider,
     required PaymentMethod method,
     required String description,
@@ -514,8 +394,7 @@ class PaymentDomainService {
   }) {
     final payment = Payment.create(
       id: id,
-      amount: amount,
-      currency: currency,
+      price: price,
       provider: provider,
       method: method,
       description: description,
@@ -531,7 +410,6 @@ class PaymentDomainService {
     return payment;
   }
 
-  /// Creates listing payment with standard V1 pricing
   static Payment createListingPayment({
     required PaymentId id,
     required PaymentProvider provider,
@@ -540,8 +418,7 @@ class PaymentDomainService {
   }) {
     return createPaymentWithValidation(
       id: id,
-      amount: listingFeeAmount,
-      currency: defaultCurrency,
+      price: Price.inSoles(listingFeeAmount),
       provider: provider,
       method: method,
       description: 'Publicación de propiedad (30 días)',
@@ -549,7 +426,6 @@ class PaymentDomainService {
     );
   }
 
-  /// Processes payment completion with validation
   static Payment processCompletion({
     required Payment payment,
     String? receiptData,
@@ -573,7 +449,6 @@ class PaymentDomainService {
     );
   }
 
-  /// Processes payment failure with validation
   static Payment processFailure({
     required Payment payment,
     required String errorMessage,
@@ -591,24 +466,6 @@ class PaymentDomainService {
     );
   }
 
-  /// Processes payment expiry (called by background job)
-  static Payment? processExpiry(Payment payment) {
-    if (payment.isFinal()) return null;
-    if (!payment.isExpired()) return null;
-
-    return payment.expire();
-  }
-
-  /// Validates payment provider configuration
-  static bool isProviderConfigured(PaymentProvider provider) {
-    switch (provider) {
-      case PaymentProvider.culqi:
-        // In real implementation, check if Culqi keys are configured
-        return true; // Simplified for V1
-    }
-  }
-
-  /// Gets processing time estimate for payment method
   static Duration getEstimatedProcessingTime(PaymentMethod method) {
     switch (method) {
       case PaymentMethod.card:

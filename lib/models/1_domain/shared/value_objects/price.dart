@@ -1,6 +1,7 @@
 // lib/models/1_domain/shared/value_objects/price.dart
 
 import 'package:equatable/equatable.dart';
+import '../../../1_domain/domain_orchestrator.dart'; // For OperationType enum
 
 /// Currency types used in Peru real estate market
 /// Limited to PEN/USD because these dominate Piura property transactions
@@ -59,7 +60,7 @@ enum Currency {
 /// prevents price corruption during property lifecycle and ensures consistent
 /// financial calculations across the platform.
 ///
-/// V1 Scope: PEN/USD support with Piura market validation
+/// V1 Scope: PEN/USD support with Piura market validation for both sales and rentals
 class Price extends Equatable {
   /// Monetary amount in the specified currency
   /// Stored as double to handle precise pricing including cents/centimos
@@ -74,8 +75,8 @@ class Price extends Equatable {
     required this.transactionCurrency,
   });
 
-  /// Creates Price with comprehensive validation
-  /// Validation prevents invalid amounts that would break financial calculations
+  /// Creates Price with basic validation (operation-agnostic)
+  /// For operation-specific validation, use PriceDomainService methods
   factory Price.create({
     required double monetaryAmountValue,
     required Currency transactionCurrency,
@@ -85,7 +86,7 @@ class Price extends Equatable {
       transactionCurrency: transactionCurrency,
     );
 
-    final validationErrors = price._validatePriceData();
+    final validationErrors = price._validateBasicPriceData();
     if (validationErrors.isNotEmpty) {
       throw PriceValidationException('Invalid price data', validationErrors);
     }
@@ -143,6 +144,24 @@ class Price extends Equatable {
     } else {
       return '${transactionCurrency.currencySymbol} ${monetaryAmountValue.toStringAsFixed(0)}';
     }
+  }
+
+  /// Generates price with operation context for display
+  /// Shows rental prices with /mes suffix
+  String generateFormattedPriceWithContext(OperationType operationType) {
+    final basePrice = generateFormattedPriceForDisplay();
+    return operationType == OperationType.alquiler
+        ? '$basePrice/mes'
+        : basePrice;
+  }
+
+  /// Generates compact price with operation context
+  /// Shows rental prices with /mes suffix in compact format
+  String generateCompactPriceWithContext(OperationType operationType) {
+    final basePrice = generateCompactPriceFormat();
+    return operationType == OperationType.alquiler
+        ? '$basePrice/mes'
+        : basePrice;
   }
 
   /// Generates price range display for search filters
@@ -262,20 +281,23 @@ class Price extends Equatable {
               3.8 // Approximate USD to PEN conversion for categorization
         : monetaryAmountValue;
 
-    if (solesEquivalentAmount < 150000)
+    if (solesEquivalentAmount < 150000) {
       return PriceMarketCategory.economicSegment;
-    if (solesEquivalentAmount < 300000)
+    }
+    if (solesEquivalentAmount < 300000) {
       return PriceMarketCategory.midMarketSegment;
-    if (solesEquivalentAmount < 600000)
+    }
+    if (solesEquivalentAmount < 600000) {
       return PriceMarketCategory.upscaleSegment;
+    }
     return PriceMarketCategory.luxurySegment;
   }
 
   // VALIDATION
 
-  /// Validates price data comprehensively for Piura market context
-  /// Prevents invalid amounts that would break financial functionality
-  List<String> _validatePriceData() {
+  /// Basic price validation (operation-agnostic)
+  /// For operation-specific validation, use PriceDomainService
+  List<String> _validateBasicPriceData() {
     final validationErrors = <String>[];
 
     // Amount validation - must be positive for valid transactions
@@ -295,33 +317,16 @@ class Price extends Equatable {
       );
     }
 
-    // Piura market reasonable limits based on local property values
-    if (transactionCurrency == Currency.pen) {
-      if (monetaryAmountValue > 2000000) {
-        // 2 million soles - beyond typical Piura property range
-        validationErrors.add(
-          'PEN price cannot exceed S/ 2,000,000 (exceeds typical Piura market range)',
-        );
-      }
-      if (monetaryAmountValue < 500) {
-        // 500 soles - below realistic minimum
-        validationErrors.add(
-          'PEN price cannot be less than S/ 500 (below realistic property minimum)',
-        );
-      }
-    } else if (transactionCurrency == Currency.usd) {
-      if (monetaryAmountValue > 600000) {
-        // 600k USD - beyond typical Piura luxury range
-        validationErrors.add(
-          'USD price cannot exceed US\$ 600,000 (exceeds typical Piura market range)',
-        );
-      }
-      if (monetaryAmountValue < 200) {
-        // 200 USD - below realistic minimum
-        validationErrors.add(
-          'USD price cannot be less than US\$ 200 (below realistic property minimum)',
-        );
-      }
+    // Very broad upper limits to prevent obvious errors
+    if (transactionCurrency == Currency.pen && monetaryAmountValue > 5000000) {
+      validationErrors.add(
+        'PEN price exceeds reasonable maximum (over S/ 5,000,000)',
+      );
+    }
+    if (transactionCurrency == Currency.usd && monetaryAmountValue > 2000000) {
+      validationErrors.add(
+        'USD price exceeds reasonable maximum (over US\$ 2,000,000)',
+      );
     }
 
     return validationErrors;
@@ -417,25 +422,106 @@ class PriceValidationException implements Exception {
 /// Price domain service for common pricing operations and business logic
 /// Centralized service ensures consistent pricing behavior across the platform
 class PriceDomainService {
+  /// Creates price with operation-specific validation
+  /// This is the recommended way to create prices with full business validation
+  static Price createPriceWithOperationValidation({
+    required double monetaryAmountValue,
+    required Currency transactionCurrency,
+    required OperationType operationType,
+  }) {
+    final price = Price.create(
+      monetaryAmountValue: monetaryAmountValue,
+      transactionCurrency: transactionCurrency,
+    );
+
+    final operationValidationErrors = validatePriceForOperation(
+      price,
+      operationType,
+    );
+    if (operationValidationErrors.isNotEmpty) {
+      throw PriceValidationException(
+        'Invalid price for ${operationType.name}',
+        operationValidationErrors,
+      );
+    }
+
+    return price;
+  }
+
+  /// Validates price for specific operation type with market-appropriate ranges
+  static List<String> validatePriceForOperation(
+    Price price,
+    OperationType operationType,
+  ) {
+    final validationErrors = <String>[];
+
+    if (operationType == OperationType.venta) {
+      // Sale price validation
+      if (price.transactionCurrency == Currency.pen) {
+        if (price.monetaryAmountValue < 30000) {
+          validationErrors.add(
+            'PEN sale price seems too low for Piura market (below S/ 30,000)',
+          );
+        }
+        if (price.monetaryAmountValue > 2000000) {
+          validationErrors.add(
+            'PEN sale price exceeds typical Piura range (over S/ 2,000,000)',
+          );
+        }
+      } else if (price.transactionCurrency == Currency.usd) {
+        if (price.monetaryAmountValue < 8000) {
+          validationErrors.add(
+            'USD sale price seems too low for Piura market (below US\$ 8,000)',
+          );
+        }
+        if (price.monetaryAmountValue > 600000) {
+          validationErrors.add(
+            'USD sale price exceeds typical Piura range (over US\$ 600,000)',
+          );
+        }
+      }
+    } else if (operationType == OperationType.alquiler) {
+      // Rental price validation (monthly)
+      if (price.transactionCurrency == Currency.pen) {
+        if (price.monetaryAmountValue < 200) {
+          validationErrors.add(
+            'PEN rental price seems too low (below S/ 200/mes)',
+          );
+        }
+        if (price.monetaryAmountValue > 15000) {
+          validationErrors.add(
+            'PEN rental price exceeds typical Piura range (over S/ 15,000/mes)',
+          );
+        }
+      } else if (price.transactionCurrency == Currency.usd) {
+        if (price.monetaryAmountValue < 100) {
+          validationErrors.add(
+            'USD rental price seems too low (below US\$ 100/mes)',
+          );
+        }
+        if (price.monetaryAmountValue > 4000) {
+          validationErrors.add(
+            'USD rental price exceeds typical Piura range (over US\$ 4,000/mes)',
+          );
+        }
+      }
+    }
+
+    return validationErrors;
+  }
+
   /// Validates price specifically for property listing publication
-  /// Additional validation ensures listing prices meet market expectations
-  static List<String> validatePriceForPropertyListing(Price propertyPrice) {
+  /// Includes both operation-specific and presentation validation
+  static List<String> validatePriceForPropertyListing(
+    Price propertyPrice,
+    OperationType operationType,
+  ) {
     final listingValidationErrors = <String>[];
 
-    // Minimum viable property prices for Piura market
-    if (propertyPrice.transactionCurrency == Currency.pen &&
-        propertyPrice.monetaryAmountValue < 30000) {
-      listingValidationErrors.add(
-        'PEN property price seems unusually low for Piura market (below S/ 30,000)',
-      );
-    }
-
-    if (propertyPrice.transactionCurrency == Currency.usd &&
-        propertyPrice.monetaryAmountValue < 8000) {
-      listingValidationErrors.add(
-        'USD property price seems unusually low for Piura market (below US\$ 8,000)',
-      );
-    }
+    // Include operation-specific validation
+    listingValidationErrors.addAll(
+      validatePriceForOperation(propertyPrice, operationType),
+    );
 
     // Price precision validation for user interface clarity
     if (propertyPrice.monetaryAmountValue % 100 != 0 &&
@@ -445,47 +531,87 @@ class PriceDomainService {
       );
     }
 
+    // Rental-specific presentation validation
+    if (operationType == OperationType.alquiler) {
+      if (propertyPrice.monetaryAmountValue % 5 != 0) {
+        listingValidationErrors.add(
+          'Rental prices should be rounded to multiples of 5 for better presentation',
+        );
+      }
+    }
+
     return listingValidationErrors;
   }
 
   /// Determines typical currency for operation type in Piura market
   /// Based on local market practices and transaction preferences
-  static Currency getTypicalCurrencyForOperationType(String operationType) {
-    switch (operationType.toLowerCase()) {
-      case 'venta':
+  static Currency getTypicalCurrencyForOperationType(
+    OperationType operationType,
+  ) {
+    switch (operationType) {
+      case OperationType.venta:
         return Currency.usd; // Sales commonly priced in USD in Piura
-      case 'alquiler':
+      case OperationType.alquiler:
         return Currency.pen; // Rentals typically priced in PEN in Piura
-      default:
-        return Currency.pen; // Default to local currency
     }
   }
 
-  /// Creates predefined price ranges for search filters
+  /// Creates predefined price ranges for search filters based on operation type
   /// Ranges optimized for Piura property market distribution
-  static List<Price> createSearchFilterPriceRanges(Currency currency) {
-    if (currency == Currency.pen) {
-      return [
-        Price.createInSoles(0),
-        Price.createInSoles(50000),
-        Price.createInSoles(100000),
-        Price.createInSoles(200000),
-        Price.createInSoles(300000),
-        Price.createInSoles(500000),
-        Price.createInSoles(750000),
-        Price.createInSoles(1000000),
-      ];
+  static List<Price> createSearchFilterPriceRanges(
+    Currency currency,
+    OperationType operationType,
+  ) {
+    if (operationType == OperationType.venta) {
+      // Sale price ranges
+      if (currency == Currency.pen) {
+        return [
+          Price.createInSoles(0),
+          Price.createInSoles(50000),
+          Price.createInSoles(100000),
+          Price.createInSoles(200000),
+          Price.createInSoles(300000),
+          Price.createInSoles(500000),
+          Price.createInSoles(750000),
+          Price.createInSoles(1000000),
+        ];
+      } else {
+        return [
+          Price.createInDollars(0),
+          Price.createInDollars(15000),
+          Price.createInDollars(30000),
+          Price.createInDollars(60000),
+          Price.createInDollars(100000),
+          Price.createInDollars(150000),
+          Price.createInDollars(250000),
+          Price.createInDollars(400000),
+        ];
+      }
     } else {
-      return [
-        Price.createInDollars(0),
-        Price.createInDollars(15000),
-        Price.createInDollars(30000),
-        Price.createInDollars(60000),
-        Price.createInDollars(100000),
-        Price.createInDollars(150000),
-        Price.createInDollars(250000),
-        Price.createInDollars(400000),
-      ];
+      // Rental price ranges (monthly)
+      if (currency == Currency.pen) {
+        return [
+          Price.createInSoles(0),
+          Price.createInSoles(500),
+          Price.createInSoles(800),
+          Price.createInSoles(1200),
+          Price.createInSoles(2000),
+          Price.createInSoles(3500),
+          Price.createInSoles(5000),
+          Price.createInSoles(8000),
+        ];
+      } else {
+        return [
+          Price.createInDollars(0),
+          Price.createInDollars(150),
+          Price.createInDollars(250),
+          Price.createInDollars(400),
+          Price.createInDollars(600),
+          Price.createInDollars(1000),
+          Price.createInDollars(1500),
+          Price.createInDollars(2500),
+        ];
+      }
     }
   }
 

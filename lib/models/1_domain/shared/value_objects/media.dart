@@ -222,9 +222,9 @@ class Media extends Equatable {
       );
     }
 
-    if (propertyPhotoUrls.length > 15) {
+    if (propertyPhotoUrls.length > 25) {
       recommendations.add(
-        'Considera reducir a 10-12 fotos para mejor experiencia de navegación',
+        'Considera reducir a 20-22 fotos para mejor experiencia de navegación',
       );
     }
 
@@ -239,9 +239,9 @@ class Media extends Equatable {
     final validationErrors = <String>[];
 
     // Photo count validation prevents system overload and poor user experience
-    if (propertyPhotoUrls.length > 20) {
+    if (propertyPhotoUrls.length > 25) {
       validationErrors.add(
-        'Cannot exceed 20 photos per property (performance and storage limitations)',
+        'Cannot exceed 25 photos per property (performance and storage limitations)',
       );
     }
 
@@ -341,7 +341,7 @@ class MediaDomainService {
 
   /// Maximum allowed photos per listing to maintain performance
   /// Balances comprehensive property showcase with system performance
-  static const int maximumAllowedPhotoCount = 20;
+  static const int maximumAllowedPhotoCount = 25;
 
   /// Optimal photo count for maximum user engagement
   /// Research shows this range provides best user experience and inquiry rates

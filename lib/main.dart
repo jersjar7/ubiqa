@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:ubiqa/services/0_config/shared/firebase_config.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await FirebaseConfig.initialize();
   runApp(const MyApp());
 }
 

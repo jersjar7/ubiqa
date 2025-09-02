@@ -43,3 +43,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Files with app secrets
+lib/services/0_config/shared/secrets.dart

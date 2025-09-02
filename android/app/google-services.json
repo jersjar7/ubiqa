@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "533701055644",
+    "project_id": "ubiqa-production",
+    "storage_bucket": "ubiqa-production.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:533701055644:android:50b45aa18714297b108959",
+        "android_client_info": {
+          "package_name": "com.jersondevs.ubiqa"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAAY4Sz8aQ2kd9dYiSAhJFmuZLZRMs5fhE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

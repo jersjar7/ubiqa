@@ -35,7 +35,7 @@ enum PaymentStatus {
   refunded,
   expired;
 
-  String get displayName {
+  String get getSpanishStatusLabel {
     switch (this) {
       case PaymentStatus.pending:
         return 'Pendiente';
@@ -54,15 +54,15 @@ enum PaymentStatus {
     }
   }
 
-  bool get isSuccess => this == PaymentStatus.completed;
-  bool get isFinal => [
+  bool get isSuccessfulStatus => this == PaymentStatus.completed;
+  bool get isFinalStatus => [
     PaymentStatus.completed,
     PaymentStatus.failed,
     PaymentStatus.cancelled,
     PaymentStatus.refunded,
     PaymentStatus.expired,
   ].contains(this);
-  bool get canRetry => [
+  bool get canRetryPayment => [
     PaymentStatus.failed,
     PaymentStatus.cancelled,
     PaymentStatus.expired,
@@ -73,14 +73,14 @@ enum PaymentStatus {
 enum PaymentProvider {
   culqi;
 
-  String get displayName {
+  String get getProviderDisplayName {
     switch (this) {
       case PaymentProvider.culqi:
         return 'Culqi';
     }
   }
 
-  List<PaymentMethod> get supportedMethods {
+  List<PaymentMethod> get getSupportedPaymentMethods {
     switch (this) {
       case PaymentProvider.culqi:
         return [PaymentMethod.card, PaymentMethod.yape, PaymentMethod.plin];
@@ -95,7 +95,7 @@ enum PaymentMethod {
   plin,
   bankTransfer;
 
-  String get displayName {
+  String get getSpanishMethodLabel {
     switch (this) {
       case PaymentMethod.card:
         return 'Tarjeta de Crédito/Débito';
@@ -108,7 +108,7 @@ enum PaymentMethod {
     }
   }
 
-  bool get isInstant {
+  bool get isInstantPayment {
     switch (this) {
       case PaymentMethod.card:
       case PaymentMethod.yape:
@@ -271,8 +271,8 @@ class Payment extends Equatable {
   bool isFailed() => status == PaymentStatus.failed;
   bool isPending() =>
       status == PaymentStatus.pending || status == PaymentStatus.processing;
-  bool isFinal() => status.isFinal;
-  bool canRetry() => status.canRetry;
+  bool isFinal() => status.isFinalStatus;
+  bool canRetry() => status.canRetryPayment;
 
   bool isExpired() {
     if (expiresAt == null) return false;
@@ -283,12 +283,12 @@ class Payment extends Equatable {
 
   /// Gets formatted amount for display
   String getFormattedAmount() {
-    return price.getFormattedPrice();
+    return price.generateFormattedPriceForDisplay();
   }
 
   /// Gets compact amount format
   String getCompactAmount() {
-    return price.getCompactPrice();
+    return price.generateCompactPriceFormat();
   }
 
   // PAYMENT CALCULATIONS
@@ -328,7 +328,7 @@ class Payment extends Equatable {
     }
 
     // Provider-method compatibility
-    if (!provider.supportedMethods.contains(method)) {
+    if (!provider.getSupportedPaymentMethods.contains(method)) {
       errors.add('Payment method not supported by provider');
     }
 
@@ -418,7 +418,7 @@ class PaymentDomainService {
   }) {
     return createPaymentWithValidation(
       id: id,
-      price: Price.inSoles(listingFeeAmount),
+      price: Price.createInSoles(listingFeeAmount),
       provider: provider,
       method: method,
       description: 'Publicación de propiedad (30 días)',

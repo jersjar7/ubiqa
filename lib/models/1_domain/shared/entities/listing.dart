@@ -35,7 +35,7 @@ enum ListingStatus {
   expired,
   deactivated;
 
-  String get displayName {
+  String get getSpanishStatusLabel {
     switch (this) {
       case ListingStatus.draft:
         return 'Borrador';
@@ -50,10 +50,10 @@ enum ListingStatus {
     }
   }
 
-  bool get isSearchable => this == ListingStatus.active;
-  bool get needsPayment =>
+  bool get isSearchableStatus => this == ListingStatus.active;
+  bool get requiresPayment =>
       this == ListingStatus.draft || this == ListingStatus.paymentPending;
-  bool get isLive => this == ListingStatus.active;
+  bool get isLiveStatus => this == ListingStatus.active;
 }
 
 /// Listing entity representing a 30-day property publication subscription
@@ -100,7 +100,7 @@ class Listing extends Equatable {
       description: description.trim(),
       price: price,
       contactInfo: contactInfo,
-      media: media ?? Media.empty(),
+      media: media ?? Media.createEmpty(),
       status: ListingStatus.draft,
       createdAt: now,
       updatedAt: now,
@@ -172,11 +172,11 @@ class Listing extends Equatable {
   }
 
   bool isSearchable() {
-    return status.isSearchable && !isExpired();
+    return status.isSearchableStatus && !isExpired();
   }
 
   bool needsPayment() {
-    return status.needsPayment;
+    return status.requiresPayment;
   }
 
   bool canBeEdited() {
@@ -204,12 +204,12 @@ class Listing extends Equatable {
 
   /// Gets formatted price for display
   String getFormattedPrice() {
-    return price.getFormattedPrice();
+    return price.generateFormattedPriceForDisplay();
   }
 
   /// Gets compact price format
   String getCompactPrice() {
-    return price.getCompactPrice();
+    return price.generateCompactPriceFormat();
   }
 
   /// Gets WhatsApp contact URL
@@ -218,27 +218,27 @@ class Listing extends Equatable {
 
     final message =
         'Hola! Me interesa tu propiedad: ${title.length > 50 ? '${title.substring(0, 50)}...' : title}';
-    return contactInfo!.getWhatsAppUrl(message);
+    return contactInfo!.generateWhatsAppContactUrl(message);
   }
 
   /// Gets formatted contact info
   String? getContactSummary() {
-    return contactInfo?.getContactSummary();
+    return contactInfo?.generateContactSummaryForListing();
   }
 
   /// Gets primary photo URL
   String? getPrimaryPhoto() {
-    return media.getPrimaryPhoto();
+    return media.getPrimaryPropertyPhotoUrl();
   }
 
   /// Checks if listing has photos
   bool hasPhotos() {
-    return media.hasPhotos();
+    return media.containsPropertyPhotos();
   }
 
   /// Gets all photo URLs
   List<String> getPhotoUrls() {
-    return media.photoUrls;
+    return media.propertyPhotoUrls;
   }
 
   // CONTENT METHODS

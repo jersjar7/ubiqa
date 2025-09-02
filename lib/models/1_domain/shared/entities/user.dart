@@ -121,12 +121,17 @@ class User extends Equatable {
   /// Gets WhatsApp contact URL for direct communication
   String? getWhatsAppContactUrl([String? message]) {
     if (!isVerified() || contactInfo == null) return null;
-    return contactInfo!.getWhatsAppUrl(message);
+    return contactInfo!.generateWhatsAppContactUrl(message);
   }
 
   /// Gets formatted phone for display
   String? getFormattedPhone() {
-    return contactInfo?.getFormattedNumber();
+    return contactInfo?.getFormattedPhoneNumberForDisplay();
+  }
+
+  /// Gets contact summary for display
+  String? getContactSummary() {
+    return contactInfo?.generateContactSummaryForListing();
   }
 
   /// Gets user account age
@@ -184,9 +189,9 @@ class UserDomainService {
     String? instructions,
   }) {
     final contactInfo = ContactInfo.create(
-      whatsappNumber: phoneNumber,
-      preferredHours: preferredHours,
-      instructions: instructions,
+      whatsappPhoneNumber: phoneNumber,
+      preferredContactTimeSlot: preferredHours,
+      additionalContactNotes: instructions,
     );
 
     return user.copyWith(contactInfo: contactInfo);

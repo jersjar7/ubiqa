@@ -1,4 +1,4 @@
-// lib/models/1_domain/shared/entities/domain_orchestrator.dart
+// lib/models/1_domain/domain_orchestrator.dart
 
 import 'package:equatable/equatable.dart';
 
@@ -12,6 +12,31 @@ import 'package:ubiqa/models/1_domain/shared/entities/user.dart';
 import 'package:ubiqa/models/1_domain/shared/value_objects/contact_info.dart';
 import 'package:ubiqa/models/1_domain/shared/value_objects/media.dart';
 import 'package:ubiqa/models/1_domain/shared/value_objects/price.dart';
+
+/// Operation types for property transactions
+/// Central enum for the entire application - used across multiple domains
+enum OperationType {
+  venta,
+  alquiler;
+
+  String get getSpanishOperationLabel {
+    switch (this) {
+      case OperationType.venta:
+        return 'Venta';
+      case OperationType.alquiler:
+        return 'Alquiler';
+    }
+  }
+
+  String get getTypicalCurrencyCode {
+    switch (this) {
+      case OperationType.venta:
+        return 'USD';
+      case OperationType.alquiler:
+        return 'PEN';
+    }
+  }
+}
 
 /// Domain Orchestrator handles cross-entity business logic and workflows
 class UbiqaDomainOrchestrator {
@@ -314,11 +339,11 @@ class UbiqaDomainOrchestrator {
 
     // Contact info should match user's verified contact info
     if (listing.contactInfo != null && user.contactInfo != null) {
-      final userPhone = user.contactInfo!.whatsappNumber.replaceAll(
+      final userPhone = user.contactInfo!.whatsappPhoneNumber.replaceAll(
         RegExp(r'[^\d]'),
         '',
       );
-      final listingPhone = listing.contactInfo!.whatsappNumber.replaceAll(
+      final listingPhone = listing.contactInfo!.whatsappPhoneNumber.replaceAll(
         RegExp(r'[^\d]'),
         '',
       );
@@ -330,12 +355,14 @@ class UbiqaDomainOrchestrator {
 
     // Listing price should be reasonable for property type and size
     if (property.propertyType == PropertyType.terreno) {
-      if (listing.price.amount < 10000) {
+      if (listing.price.monetaryAmountValue < 10000) {
         errors.add('Terreno price seems unusually low');
       }
     } else {
       // Rough price per m² validation
-      final pricePerM2 = listing.price.amount / property.specs.areaM2;
+      final pricePerM2 =
+          listing.price.monetaryAmountValue /
+          property.specs.totalAreaInSquareMeters;
       if (pricePerM2 < 100) {
         errors.add('Price per square meter seems unusually low');
       }
@@ -364,7 +391,8 @@ class UbiqaDomainOrchestrator {
     }
 
     // Payment amount should match listing fee
-    if (payment.price.amount != PaymentDomainService.listingFeeAmount) {
+    if (payment.price.monetaryAmountValue !=
+        PaymentDomainService.listingFeeAmount) {
       errors.add('Payment amount does not match listing fee');
     }
 
@@ -377,7 +405,7 @@ class UbiqaDomainOrchestrator {
   }
 }
 
-// RESULT VALUE OBJECTS (unchanged)
+// RESULT VALUE OBJECTS
 
 class UserListingEligibility extends Equatable {
   final bool isEligible;

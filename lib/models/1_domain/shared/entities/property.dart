@@ -7,6 +7,9 @@ import '../value_objects/location.dart';
 import '../value_objects/property_specs.dart';
 import '../value_objects/media.dart';
 
+// Import OperationType from domain orchestrator
+import '../../domain_orchestrator.dart';
+
 /// Strongly-typed identifier for Property entities
 class PropertyId extends Equatable {
   final String value;
@@ -35,7 +38,7 @@ enum PropertyType {
   oficina,
   local;
 
-  String get displayName {
+  String get displayPropertyTypeName {
     switch (this) {
       case PropertyType.casa:
         return 'Casa';
@@ -56,30 +59,6 @@ enum PropertyType {
 
   bool get isResidential {
     return this == PropertyType.casa || this == PropertyType.departamento;
-  }
-}
-
-/// Operation types for property transactions
-enum OperationType {
-  venta,
-  alquiler;
-
-  String get displayName {
-    switch (this) {
-      case OperationType.venta:
-        return 'Venta';
-      case OperationType.alquiler:
-        return 'Alquiler';
-    }
-  }
-
-  String get typicalCurrency {
-    switch (this) {
-      case OperationType.venta:
-        return 'USD';
-      case OperationType.alquiler:
-        return 'PEN';
-    }
   }
 }
 
@@ -123,7 +102,7 @@ class Property extends Equatable {
       operationType: operationType,
       specs: specs,
       location: location,
-      media: media ?? Media.empty(),
+      media: media ?? Media.createEmpty(),
       createdAt: now,
       updatedAt: now,
       isAvailable: true,
@@ -157,33 +136,49 @@ class Property extends Equatable {
 
   /// Whether property has location coordinates for map display
   bool hasGpsCoordinates() {
-    return location.latitude != 0.0 && location.longitude != 0.0;
+    return location.latitudeInDecimalDegrees != 0.0 &&
+        location.longitudeInDecimalDegrees != 0.0;
   }
 
   /// Whether property has complete room information
   bool hasCompleteRoomInfo() {
     if (!propertyType.hasRooms) return true;
-    return specs.bedrooms != null && specs.bathrooms != null;
+    return specs.bedroomCount != null && specs.bathroomCount != null;
   }
 
   /// Gets property summary for display
   String getPropertySummary() {
-    return specs.getPropertySummary();
+    return specs.generateListingCardSummary();
   }
 
   /// Gets formatted address for display
   String getFormattedAddress() {
-    return location.getFormattedAddress();
+    return location.generateFormattedAddressForDisplay();
   }
 
   /// Whether property has photos
   bool hasPhotos() {
-    return media.hasPhotos();
+    return media.containsPropertyPhotos();
   }
 
   /// Gets primary photo URL
   String? getPrimaryPhoto() {
-    return media.getPrimaryPhoto();
+    return media.getPrimaryPropertyPhotoUrl();
+  }
+
+  /// Gets all photo URLs
+  List<String> getPhotoUrls() {
+    return media.propertyPhotoUrls;
+  }
+
+  /// Gets district for display
+  String getDistrict() {
+    return location.generateDistrictOnlyDisplay();
+  }
+
+  /// Gets total area formatted for display
+  String getFormattedArea() {
+    return specs.formatAreaForUserDisplay();
   }
 
   /// Checks if property matches search filters
@@ -206,17 +201,17 @@ class Property extends Equatable {
     }
 
     if (filterDistrict != null &&
-        !location.district.toLowerCase().contains(
+        !location.administrativeDistrict.toLowerCase().contains(
           filterDistrict.toLowerCase(),
         )) {
       return false;
     }
 
-    return specs.matchesFilters(
-      minBedrooms: minBedrooms,
-      maxBedrooms: maxBedrooms,
-      minArea: minArea,
-      maxArea: maxArea,
+    return specs.matchesSearchFilters(
+      minimumBedroomCount: minBedrooms,
+      maximumBedroomCount: maxBedrooms,
+      minimumAreaInSquareMeters: minArea,
+      maximumAreaInSquareMeters: maxArea,
       requiredAmenities: requiredAmenities,
     );
   }
@@ -227,7 +222,7 @@ class Property extends Equatable {
 
   @override
   String toString() {
-    return 'Property(id: ${id.value}, type: ${propertyType.name}, ${specs.getPropertySummary()})';
+    return 'Property(id: ${id.value}, type: ${propertyType.name}, ${specs.generateListingCardSummary()})';
   }
 }
 

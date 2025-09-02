@@ -46,3 +46,4 @@ app.*.map.json
 
 # Files with app secrets
 lib/services/0_config/shared/secrets.dart
+firebase_options.dart

@@ -76,6 +76,27 @@ class User extends Equatable {
     );
   }
 
+  /// Factory: Reconstruct user from stored data (for infrastructure layer)
+  factory User.fromStoredData({
+    required String firebaseUid,
+    required String email,
+    String? name,
+    ContactInfo? contactInfo,
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    required bool isActive,
+  }) {
+    return User._(
+      id: UserId.fromFirebaseUid(firebaseUid),
+      email: email.trim().toLowerCase(),
+      name: name?.trim(),
+      contactInfo: contactInfo,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+      isActive: isActive,
+    );
+  }
+
   /// Creates copy with updated fields
   User copyWith({
     String? name,

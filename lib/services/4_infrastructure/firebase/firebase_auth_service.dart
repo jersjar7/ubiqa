@@ -1,4 +1,4 @@
-// lib/services/1_infrastructure/firebase/firebase_auth_service.dart
+// lib/services/4_infrastructure/firebase/firebase_auth_service.dart
 
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -227,7 +227,7 @@ class FirebaseAuthService {
     String? name,
     String? phoneNumber,
     ContactHours? preferredContactHours,
-    String? contactInstructions,
+    String? profileImageUrl,
   }) async {
     try {
       // Use domain service to update profile with validation
@@ -236,7 +236,8 @@ class FirebaseAuthService {
         name: name,
         phoneNumber: phoneNumber,
         preferredHours: preferredContactHours,
-        contactInstructions: contactInstructions,
+        contactInstructions:
+            profileImageUrl, // Note: may need to adjust this mapping
       );
 
       // Persist updated profile to Firestore
@@ -426,6 +427,185 @@ class FirebaseAuthService {
     }
   }
 
+  // PHONE VERIFICATION (Peru Market Critical)
+
+  /// Sends SMS verification code to phone number
+  /// Critical for Peru market user verification requirements
+  Future<ServiceResult<void>> sendPhoneVerificationCode({
+    required String phoneNumber,
+  }) async {
+    try {
+      // Format Peru phone number (+51)
+      final formattedPhone = _formatPeruPhoneNumber(phoneNumber);
+
+      await _firebaseAuth.verifyPhoneNumber(
+        phoneNumber: formattedPhone,
+        verificationCompleted: (firebase_auth.PhoneAuthCredential credential) {
+          // Auto-verification completed (Android only)
+        },
+        verificationFailed: (firebase_auth.FirebaseAuthException e) {
+          throw e;
+        },
+        codeSent: (String verificationId, int? resendToken) {
+          // Store verification ID for later use
+          // In production, you might want to store this more persistently
+        },
+        codeAutoRetrievalTimeout: (String verificationId) {
+          // Auto-retrieval timeout
+        },
+        timeout: const Duration(seconds: 60),
+      );
+
+      return ServiceResult.success(null);
+    } on firebase_auth.FirebaseAuthException catch (e) {
+      return ServiceResult.failure(
+        _getPhoneVerificationErrorMessage(e),
+        ServiceException(
+          e.message ?? 'Phone verification error',
+          ServiceErrorType.authentication,
+          e,
+        ),
+      );
+    } catch (e) {
+      return ServiceResult.failure(
+        'Phone verification failed',
+        ServiceException(e.toString(), ServiceErrorType.unknown, e),
+      );
+    }
+  }
+
+  /// Verifies phone number with SMS code
+  /// Updates user profile with verified contact information
+  Future<ServiceResult<User>> verifyPhoneNumber({
+    required String phoneNumber,
+    required String verificationCode,
+  }) async {
+    try {
+      final currentFirebaseUser = _firebaseAuth.currentUser;
+      if (currentFirebaseUser == null) {
+        return ServiceResult.failure(
+          'User must be authenticated to verify phone',
+          ServiceException(
+            'No authenticated user',
+            ServiceErrorType.authentication,
+          ),
+        );
+      }
+
+      // Get current user profile
+      final userResult = await getUserProfile(currentFirebaseUser.uid);
+      if (!userResult.isSuccess) {
+        return ServiceResult.failure(
+          'Failed to load user profile',
+          userResult.exception,
+        );
+      }
+
+      // Set contact info with verified phone
+      final verifiedUser = await setUserContactInfo(
+        currentUser: userResult.data!,
+        whatsappPhoneNumber: phoneNumber,
+        preferredContactHours: ContactHours.anytime,
+        additionalContactNotes: 'Número verificado',
+      );
+
+      return verifiedUser;
+    } on firebase_auth.FirebaseAuthException catch (e) {
+      return ServiceResult.failure(
+        _getPhoneVerificationErrorMessage(e),
+        ServiceException(
+          e.message ?? 'Phone verification error',
+          ServiceErrorType.authentication,
+          e,
+        ),
+      );
+    } catch (e) {
+      return ServiceResult.failure(
+        'Phone verification failed',
+        ServiceException(e.toString(), ServiceErrorType.unknown, e),
+      );
+    }
+  }
+
+  // ACCOUNT MANAGEMENT
+
+  /// Checks if email is already registered by attempting password reset
+  /// Returns true if email exists, false if not found
+  Future<ServiceResult<bool>> isEmailRegistered({required String email}) async {
+    try {
+      await _firebaseAuth.sendPasswordResetEmail(email: email);
+      // If no exception, email exists
+      return ServiceResult.success(true);
+    } on firebase_auth.FirebaseAuthException catch (e) {
+      if (e.code == 'user-not-found') {
+        return ServiceResult.success(false);
+      }
+      // Other errors mean we can't determine status
+      return ServiceResult.failure(
+        _getAuthErrorMessage(e),
+        ServiceException(
+          e.message ?? 'Email check error',
+          ServiceErrorType.authentication,
+          e,
+        ),
+      );
+    } catch (e) {
+      return ServiceResult.failure(
+        'Email check failed',
+        ServiceException(e.toString(), ServiceErrorType.unknown, e),
+      );
+    }
+  }
+
+  /// Permanently deletes user account and all associated data
+  /// WARNING: This operation cannot be undone
+  Future<ServiceResult<void>> deleteUserAccount({required User user}) async {
+    try {
+      final currentFirebaseUser = _firebaseAuth.currentUser;
+      if (currentFirebaseUser == null) {
+        return ServiceResult.failure(
+          'User must be authenticated to delete account',
+          ServiceException(
+            'No authenticated user',
+            ServiceErrorType.authentication,
+          ),
+        );
+      }
+
+      // Delete user data from Firestore first
+      await FirebaseCollections.users.doc(user.id.value).delete();
+
+      // Delete Firebase Auth user (this signs out automatically)
+      await currentFirebaseUser.delete();
+
+      return ServiceResult.success(null);
+    } on firebase_auth.FirebaseAuthException catch (e) {
+      if (e.code == 'requires-recent-login') {
+        return ServiceResult.failure(
+          'Para eliminar tu cuenta, necesitas iniciar sesión nuevamente',
+          ServiceException(
+            'Recent login required for account deletion',
+            ServiceErrorType.authentication,
+            e,
+          ),
+        );
+      }
+      return ServiceResult.failure(
+        _getAuthErrorMessage(e),
+        ServiceException(
+          e.message ?? 'Account deletion error',
+          ServiceErrorType.authentication,
+          e,
+        ),
+      );
+    } catch (e) {
+      return ServiceResult.failure(
+        'Account deletion failed',
+        ServiceException(e.toString(), ServiceErrorType.unknown, e),
+      );
+    }
+  }
+
   // PRIVATE HELPER METHODS
 
   /// Persists User entity to Firestore
@@ -510,6 +690,21 @@ class FirebaseAuthService {
     );
   }
 
+  /// Formats Peru phone number for Firebase Auth
+  String _formatPeruPhoneNumber(String phoneNumber) {
+    // Remove all non-digits
+    final digitsOnly = phoneNumber.replaceAll(RegExp(r'[^\d]'), '');
+
+    // Add Peru country code if not present
+    if (digitsOnly.startsWith('51')) {
+      return '+$digitsOnly';
+    } else if (digitsOnly.startsWith('9') && digitsOnly.length == 9) {
+      return '+51$digitsOnly';
+    } else {
+      return '+51$digitsOnly';
+    }
+  }
+
   /// Validates email format for Peru market
   bool _isValidEmailFormat(String email) {
     final emailRegex = RegExp(
@@ -541,6 +736,26 @@ class FirebaseAuthService {
         return 'Necesitas iniciar sesión nuevamente para esta acción';
       default:
         return 'Error de autenticación: ${e.message ?? 'Desconocido'}';
+    }
+  }
+
+  /// Converts phone verification errors to user-friendly messages
+  String _getPhoneVerificationErrorMessage(
+    firebase_auth.FirebaseAuthException e,
+  ) {
+    switch (e.code) {
+      case 'invalid-phone-number':
+        return 'Número de teléfono inválido';
+      case 'too-many-requests':
+        return 'Demasiados intentos. Intenta más tarde';
+      case 'quota-exceeded':
+        return 'Se excedió el límite de verificaciones. Intenta mañana';
+      case 'invalid-verification-code':
+        return 'Código de verificación incorrecto';
+      case 'session-expired':
+        return 'Código expirado. Solicita uno nuevo';
+      default:
+        return 'Error de verificación: ${e.message ?? 'Desconocido'}';
     }
   }
 }

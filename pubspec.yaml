@@ -43,6 +43,7 @@ dependencies:
   flutter_image_compress: ^2.4.0
   path_provider: ^2.1.5
   http: ^1.5.0
+  get_it: ^8.2.0
 
 dev_dependencies:
   flutter_test:

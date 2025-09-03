@@ -3,8 +3,8 @@
 import 'package:get_it/get_it.dart';
 
 // Import infrastructure services
-import '../1_infrastructure/firebase/firebase_auth_service.dart';
-import '../1_infrastructure/firebase/firestore_service.dart';
+import '../4_infrastructure/firebase/firebase_auth_service.dart';
+import '../4_infrastructure/firebase/firestore_service.dart';
 
 /// Centralized dependency injection container for Ubiqa
 ///

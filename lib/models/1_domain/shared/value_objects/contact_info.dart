@@ -1,6 +1,7 @@
 // lib/models/1_domain/shared/value_objects/contact_info.dart
 
 import 'package:equatable/equatable.dart';
+import 'international_phone_number.dart';
 
 /// Contact hours preferences for property inquiries
 /// These slots align with Peru's business culture and WhatsApp usage patterns
@@ -47,7 +48,7 @@ enum ContactHours {
 ///
 /// V1 Scope: WhatsApp contact with basic preferences
 class ContactInfo extends Equatable {
-  /// WhatsApp phone number in Peru format
+  /// WhatsApp phone number with international format
   /// Stored as provided by user to maintain their preferred input format
   final String whatsappPhoneNumber;
 
@@ -204,9 +205,9 @@ class ContactInfo extends Equatable {
     final validationErrors = <String>[];
 
     // WhatsApp number validation is critical for core functionality
-    if (!_isValidPeruvianMobileNumber(whatsappPhoneNumber)) {
+    if (!_isValidInternationalMobileNumber(whatsappPhoneNumber)) {
       validationErrors.add(
-        'WhatsApp number must be a valid Peruvian mobile number',
+        'WhatsApp number must be a valid US or Peru mobile number',
       );
     }
 
@@ -227,22 +228,12 @@ class ContactInfo extends Equatable {
     return validationErrors;
   }
 
-  /// Validates Peruvian mobile phone format for WhatsApp compatibility
-  /// Peru mobile numbers have specific patterns that WhatsApp recognizes
-  bool _isValidPeruvianMobileNumber(String phoneNumber) {
-    final cleanedDigits = phoneNumber.replaceAll(RegExp(r'[^\d]'), '');
-
-    // 9 digits starting with 9 (999999999) - standard Peru mobile format
-    if (cleanedDigits.length == 9 && cleanedDigits.startsWith('9')) {
-      return true;
-    }
-
-    // 11 digits: 51 + 9 digits starting with 9 (51999999999) - international format
-    if (cleanedDigits.length == 11 && cleanedDigits.startsWith('519')) {
-      return true;
-    }
-
-    return false;
+  /// Validates international mobile phone format for WhatsApp compatibility
+  /// US and Peru mobile numbers have specific patterns that WhatsApp recognizes
+  bool _isValidInternationalMobileNumber(String phoneNumber) {
+    return InternationalPhoneNumberDomainService.isValidInternationalPhoneNumber(
+      phoneNumber,
+    );
   }
 
   // VALUE OBJECT EQUALITY - Based on all fields
@@ -325,7 +316,7 @@ class ContactInfoDomainService {
     final listingValidationErrors = <String>[];
 
     // Must have valid WhatsApp number for core functionality
-    if (!contactInfo._isValidPeruvianMobileNumber(
+    if (!contactInfo._isValidInternationalMobileNumber(
       contactInfo.whatsappPhoneNumber,
     )) {
       listingValidationErrors.add(

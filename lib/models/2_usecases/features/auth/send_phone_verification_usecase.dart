@@ -2,13 +2,14 @@
 
 // Import horizontal foundation - infrastructure
 import '../../../../services/4_infrastructure/shared/service_result.dart';
+import '../../../1_domain/shared/value_objects/international_phone_number.dart';
 
 // Import feature contracts
 import '../../../../services/1_contracts/features/auth/auth_repository.dart';
 
 /// Send Phone Verification Use Case
 ///
-/// Initiates phone number verification for Peru market requirements.
+/// Initiates phone number verification for international markets.
 /// Validates phone format and sends verification code via SMS.
 /// Used by presentation layer for phone verification flow.
 class SendPhoneVerificationUseCase {
@@ -18,7 +19,7 @@ class SendPhoneVerificationUseCase {
 
   /// Execute phone verification code sending
   ///
-  /// Validates Peru phone number and sends verification code.
+  /// Validates international phone number and sends verification code.
   /// Returns success or error details on failure.
   Future<ServiceResult<void>> execute({required String phoneNumber}) async {
     try {
@@ -77,18 +78,18 @@ class SendPhoneVerificationUseCase {
       );
     }
 
-    // Validate Peru phone number format
-    return _validatePeruPhoneNumber(phoneNumber.trim());
+    // Validate international phone number format
+    return _validateInternationalPhoneNumber(phoneNumber.trim());
   }
 
-  ServiceResult<void> _validatePeruPhoneNumber(String phoneNumber) {
-    // Peru phone number format: +51 followed by 9 digits
-    final peruPhoneRegex = RegExp(r'^\+51[0-9]{9}$');
-    if (!peruPhoneRegex.hasMatch(phoneNumber)) {
+  ServiceResult<void> _validateInternationalPhoneNumber(String phoneNumber) {
+    if (!InternationalPhoneNumberDomainService.isValidInternationalPhoneNumber(
+      phoneNumber,
+    )) {
       return ServiceResult.failure(
-        'Invalid Peru phone number',
+        'Invalid phone number',
         ServiceException(
-          'Phone number must be in format +51XXXXXXXXX for Peru',
+          'Phone number must be in format +1XXXXXXXXXX (US) or +51XXXXXXXXX (Peru)',
           ServiceErrorType.validation,
         ),
       );
@@ -128,7 +129,7 @@ class SendPhoneVerificationUseCase {
         return ServiceResult.failure(
           'Phone number validation failed',
           ServiceException(
-            'Invalid phone number format for Peru',
+            'Invalid phone number format',
             ServiceErrorType.validation,
             originalError.originalError,
           ),

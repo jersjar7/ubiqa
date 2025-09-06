@@ -50,7 +50,7 @@ abstract class IAuthRepository {
   });
 
   /// Send phone verification code to user
-  /// Required for user verification in Peru market
+  /// Required for user verification in international markets (US, Peru)
   Future<ServiceResult<void>> sendPhoneVerificationCode({
     required String phoneNumber,
   });

@@ -12,6 +12,9 @@ import '../../../shared/theme/app_text_styles.dart';
 // Import widgets
 import '../widgets/auth_button.dart';
 
+// Import domain
+import '../../../../../models/1_domain/shared/value_objects/international_phone_number.dart';
+
 // Import state management
 import '../../../../1_state/features/auth/auth_bloc.dart';
 import '../../../../1_state/features/auth/auth_event.dart';
@@ -154,7 +157,7 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage> {
         ),
         const SizedBox(height: 8.0),
         Text(
-          _maskPhoneNumber(widget.phoneNumber),
+          _formatPhoneNumberForDisplay(widget.phoneNumber),
           style: AppTextStyles.callout.copyWith(
             color: AppColors.primary,
             fontWeight: FontWeight.w600,
@@ -315,6 +318,18 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage> {
 
   // HELPERS
 
+  String _formatPhoneNumberForDisplay(String phoneNumber) {
+    try {
+      final internationalPhone = InternationalPhoneNumber.create(
+        phoneNumber: phoneNumber,
+      );
+      return internationalPhone.getFormattedPhoneNumberForDisplay();
+    } catch (e) {
+      // Fallback to basic masking if formatting fails
+      return _maskPhoneNumber(phoneNumber);
+    }
+  }
+
   String _maskPhoneNumber(String phoneNumber) {
     if (phoneNumber.length >= 10) {
       final start = phoneNumber.substring(0, 6);
@@ -354,7 +369,7 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage> {
       builder: (context) => CupertinoAlertDialog(
         title: const Text('Código reenviado'),
         content: Text(
-          'Se ha enviado un nuevo código a ${_maskPhoneNumber(widget.phoneNumber)}',
+          'Se ha enviado un nuevo código a ${_formatPhoneNumberForDisplay(widget.phoneNumber)}',
         ),
         actions: [
           CupertinoDialogAction(

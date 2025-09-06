@@ -1,6 +1,7 @@
-// lib/services/6_injection/dependency_container.dart
+// lib/services/5_injection/dependency_container.dart
 
 import 'package:get_it/get_it.dart';
+import 'package:ubiqa/services/5_injection/features/auth/auth_dependencies.dart';
 
 // Import infrastructure services
 import '../4_infrastructure/firebase/firebase_auth_service.dart';
@@ -28,7 +29,7 @@ class UbiqaDependencyContainer {
     // Each feature calls its own registration function here
 
     // Example (to be implemented):
-    // await AuthDependencies.register(_container);
+    await AuthDependencies.register(_container);
     // await ListingsDependencies.register(_container);
     // await PaymentsDependencies.register(_container);
 

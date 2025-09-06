@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:ubiqa/services/0_config/shared/firebase_config.dart';
-import 'package:ubiqa/services/6_injection/dependency_container.dart';
+import 'package:ubiqa/services/5_injection/dependency_container.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

@@ -11,6 +11,10 @@ import '../../../shared/theme/app_text_styles.dart';
 // Import widgets
 import '../widgets/auth_text_field.dart';
 import '../widgets/auth_button.dart';
+import '../widgets/international_phone_field.dart';
+
+// Import domain
+import '../../../../../models/1_domain/shared/value_objects/international_phone_number.dart';
 
 // Import state management
 import '../../../../1_state/features/auth/auth_bloc.dart';
@@ -30,7 +34,6 @@ class RegisterPage extends StatefulWidget {
 class _RegisterPageState extends State<RegisterPage> {
   final _fullNameController = TextEditingController();
   final _emailController = TextEditingController();
-  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
@@ -40,11 +43,14 @@ class _RegisterPageState extends State<RegisterPage> {
   String? _passwordError;
   String? _confirmPasswordError;
 
+  // International phone state
+  SupportedCountryCode _selectedCountry = SupportedCountryCode.peru;
+  String _fullPhoneNumber = '';
+
   @override
   void dispose() {
     _fullNameController.dispose();
     _emailController.dispose();
-    _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
@@ -130,10 +136,11 @@ class _RegisterPageState extends State<RegisterPage> {
               onChanged: _onEmailChanged,
             ),
             const SizedBox(height: 16.0),
-            PhoneTextField(
-              controller: _phoneController,
+            InternationalPhoneField(
               errorText: _phoneError,
-              onChanged: _onPhoneChanged,
+              initialCountry: _selectedCountry,
+              onPhoneChanged: _onPhoneChanged,
+              onCountryChanged: _onCountryChanged,
             ),
             const SizedBox(height: 16.0),
             PasswordTextField(
@@ -232,10 +239,20 @@ class _RegisterPageState extends State<RegisterPage> {
     }
   }
 
-  void _onPhoneChanged(String value) {
+  void _onPhoneChanged(String phoneNumber) {
+    setState(() {
+      _fullPhoneNumber = phoneNumber;
+    });
+
     if (_phoneError != null) {
       setState(() => _phoneError = null);
     }
+  }
+
+  void _onCountryChanged(SupportedCountryCode country) {
+    setState(() {
+      _selectedCountry = country;
+    });
   }
 
   void _onPasswordChanged(String value) {
@@ -259,9 +276,7 @@ class _RegisterPageState extends State<RegisterPage> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
         fullName: _fullNameController.text.trim(),
-        phoneNumber: _phoneController.text.trim().isEmpty
-            ? null
-            : _phoneController.text.trim(),
+        phoneNumber: _fullPhoneNumber.isEmpty ? null : _fullPhoneNumber,
       ),
     );
   }
@@ -311,12 +326,9 @@ class _RegisterPageState extends State<RegisterPage> {
       isValid = false;
     }
 
-    final phone = _phoneController.text.trim();
-    if (phone.isNotEmpty && !_isValidPeruPhone(phone)) {
-      setState(
-        () => _phoneError =
-            'Formato de teléfono inválido para Perú (+51XXXXXXXXX)',
-      );
+    if (_fullPhoneNumber.isNotEmpty &&
+        !_isValidInternationalPhone(_fullPhoneNumber)) {
+      setState(() => _phoneError = 'Formato de teléfono inválido');
       isValid = false;
     }
 
@@ -355,10 +367,10 @@ class _RegisterPageState extends State<RegisterPage> {
     return RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(email);
   }
 
-  bool _isValidPeruPhone(String phone) {
-    return RegExp(
-      r'^\+51[0-9]{9}$',
-    ).hasMatch(phone.replaceAll(RegExp(r'[\s-]'), ''));
+  bool _isValidInternationalPhone(String phone) {
+    return InternationalPhoneNumberDomainService.isValidInternationalPhoneNumber(
+      phone,
+    );
   }
 
   // STATE MANAGEMENT

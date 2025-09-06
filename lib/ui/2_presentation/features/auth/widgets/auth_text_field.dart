@@ -280,7 +280,8 @@ class PasswordTextField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AuthTextField(
-      label: label ?? (isConfirmPassword ? 'Confirm Password' : 'Password'),
+      label:
+          label ?? (isConfirmPassword ? 'Confirmar contraseña' : 'Contraseña'),
       placeholder: isConfirmPassword
           ? 'Confirma tu contraseña'
           : 'Ingresa tu contraseña',
@@ -309,6 +310,7 @@ class PhoneTextField extends StatelessWidget {
   final TextEditingController? controller;
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
+  final bool enabled;
 
   const PhoneTextField({
     super.key,
@@ -317,17 +319,19 @@ class PhoneTextField extends StatelessWidget {
     this.controller,
     this.onChanged,
     this.onSubmitted,
+    this.enabled = true,
   });
 
   @override
   Widget build(BuildContext context) {
     return AuthTextField(
-      label: label ?? 'Phone Number',
-      placeholder: '+51 999 999 999',
+      label: label ?? 'Número de teléfono',
+      placeholder: '+51 123 456 789',
       errorText: errorText,
       controller: controller,
       keyboardType: TextInputType.phone,
       textInputAction: TextInputAction.next,
+      enabled: enabled,
       inputFormatters: [
         FilteringTextInputFormatter.allow(RegExp(r'[0-9+\s-]')),
       ],
@@ -349,6 +353,7 @@ class FullNameTextField extends StatelessWidget {
   final TextEditingController? controller;
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
+  final bool enabled;
 
   const FullNameTextField({
     super.key,
@@ -357,6 +362,7 @@ class FullNameTextField extends StatelessWidget {
     this.controller,
     this.onChanged,
     this.onSubmitted,
+    this.enabled = true,
   });
 
   @override
@@ -368,6 +374,7 @@ class FullNameTextField extends StatelessWidget {
       controller: controller,
       keyboardType: TextInputType.name,
       textInputAction: TextInputAction.next,
+      enabled: enabled,
       inputFormatters: [
         FilteringTextInputFormatter.allow(RegExp(r'[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ\s]')),
       ],

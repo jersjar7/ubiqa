@@ -1,4 +1,4 @@
-// lib/ui/2_presentation/features/auth/pages/login_page.dart
+// lib/ui/2_presentation/features/auth/pages/register_page.dart
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -20,24 +20,33 @@ import '../../../../1_state/features/auth/auth_state.dart';
 // Import dependency injection
 import '../../../../../services/5_injection/dependency_container.dart';
 
-class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+class RegisterPage extends StatefulWidget {
+  const RegisterPage({super.key});
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  State<RegisterPage> createState() => _RegisterPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class _RegisterPageState extends State<RegisterPage> {
+  final _fullNameController = TextEditingController();
   final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
 
+  String? _fullNameError;
   String? _emailError;
+  String? _phoneError;
   String? _passwordError;
+  String? _confirmPasswordError;
 
   @override
   void dispose() {
+    _fullNameController.dispose();
     _emailController.dispose();
+    _phoneController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
@@ -59,13 +68,11 @@ class _LoginPageState extends State<LoginPage> {
                   const SizedBox(height: 0.0),
                   _buildWelcomeText(),
                   const SizedBox(height: 40.0),
-                  _buildLoginForm(),
+                  _buildRegisterForm(),
                   const SizedBox(height: 4.0),
-                  _buildForgotPasswordButton(),
+                  _buildSocialRegisterSection(),
                   const SizedBox(height: 12.0),
-                  _buildSocialLoginSection(),
-                  const SizedBox(height: 12.0),
-                  _buildSignUpPrompt(),
+                  _buildLoginPrompt(),
                   const SizedBox(height: 40.0),
                 ],
               ),
@@ -96,13 +103,19 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  Widget _buildLoginForm() {
+  Widget _buildRegisterForm() {
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
         final isLoading = state is AuthLoading;
 
         return Column(
           children: [
+            FullNameTextField(
+              controller: _fullNameController,
+              errorText: _fullNameError,
+              onChanged: _onFullNameChanged,
+            ),
+            const SizedBox(height: 16.0),
             AuthTextField(
               label: 'Correo electrónico',
               placeholder: 'Ingresa tu correo electrónico',
@@ -115,22 +128,34 @@ class _LoginPageState extends State<LoginPage> {
                 color: AppColors.textSecondary,
               ),
               onChanged: _onEmailChanged,
-              onSubmitted: (_) => _onLoginPressed(context),
+            ),
+            const SizedBox(height: 16.0),
+            PhoneTextField(
+              controller: _phoneController,
+              errorText: _phoneError,
+              onChanged: _onPhoneChanged,
             ),
             const SizedBox(height: 16.0),
             PasswordTextField(
-              label: 'Contraseña',
               controller: _passwordController,
               errorText: _passwordError,
               onChanged: _onPasswordChanged,
-              onSubmitted: (_) => _onLoginPressed(context),
+            ),
+            const SizedBox(height: 16.0),
+            PasswordTextField(
+              label: 'Confirmar contraseña',
+              controller: _confirmPasswordController,
+              errorText: _confirmPasswordError,
+              isConfirmPassword: true,
+              onChanged: _onConfirmPasswordChanged,
+              onSubmitted: (_) => _onRegisterPressed(context),
             ),
             const SizedBox(height: 24.0),
             AuthButton(
-              text: 'Iniciar Sesión',
+              text: 'Crear Cuenta',
               isLoading: isLoading,
               width: double.infinity,
-              onPressed: () => _onLoginPressed(context),
+              onPressed: () => _onRegisterPressed(context),
             ),
           ],
         );
@@ -138,17 +163,7 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  Widget _buildForgotPasswordButton() {
-    return Align(
-      alignment: Alignment.centerRight,
-      child: TextAuthButton(
-        text: '¿Olvidaste tu contraseña?',
-        onPressed: _onForgotPasswordPressed,
-      ),
-    );
-  }
-
-  Widget _buildSocialLoginSection() {
+  Widget _buildSocialRegisterSection() {
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
         final isLoading = state is AuthLoading;
@@ -161,7 +176,7 @@ class _LoginPageState extends State<LoginPage> {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
                   child: Text(
-                    'o continúa con',
+                    'o regístrate con',
                     style: AppTextStyles.caption1.copyWith(
                       color: AppColors.textSecondary,
                     ),
@@ -175,14 +190,14 @@ class _LoginPageState extends State<LoginPage> {
               provider: SocialProvider.google,
               isLoading: isLoading,
               onPressed: () =>
-                  _onSocialLoginPressed(context, SocialProvider.google),
+                  _onSocialRegisterPressed(context, SocialProvider.google),
             ),
             const SizedBox(height: 12.0),
             SocialAuthButton(
               provider: SocialProvider.apple,
               isLoading: isLoading,
               onPressed: () =>
-                  _onSocialLoginPressed(context, SocialProvider.apple),
+                  _onSocialRegisterPressed(context, SocialProvider.apple),
             ),
           ],
         );
@@ -190,96 +205,146 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  Widget _buildSignUpPrompt() {
+  Widget _buildLoginPrompt() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Text(
-          "¿No tienes una cuenta? ",
+          "¿Ya tienes una cuenta? ",
           style: AppTextStyles.callout.copyWith(color: AppColors.textSecondary),
         ),
-        TextAuthButton(text: 'Regístrate', onPressed: _onSignUpPressed),
+        TextAuthButton(text: 'Iniciar Sesión', onPressed: _onLoginPressed),
       ],
     );
   }
 
   // EVENT HANDLERS
 
+  void _onFullNameChanged(String value) {
+    if (_fullNameError != null) {
+      setState(() => _fullNameError = null);
+    }
+  }
+
   void _onEmailChanged(String value) {
     if (_emailError != null) {
-      setState(() {
-        _emailError = null;
-      });
+      setState(() => _emailError = null);
+    }
+  }
+
+  void _onPhoneChanged(String value) {
+    if (_phoneError != null) {
+      setState(() => _phoneError = null);
     }
   }
 
   void _onPasswordChanged(String value) {
     if (_passwordError != null) {
-      setState(() {
-        _passwordError = null;
-      });
+      setState(() => _passwordError = null);
     }
   }
 
-  void _onLoginPressed(BuildContext context) {
-    // Clear previous errors
-    setState(() {
-      _emailError = null;
-      _passwordError = null;
-    });
+  void _onConfirmPasswordChanged(String value) {
+    if (_confirmPasswordError != null) {
+      setState(() => _confirmPasswordError = null);
+    }
+  }
 
-    // Validate inputs
+  void _onRegisterPressed(BuildContext context) {
+    _clearErrors();
     if (!_validateInputs()) return;
 
-    // Trigger login event
     context.read<AuthBloc>().add(
-      LoginRequested(
+      RegisterRequested(
         email: _emailController.text.trim(),
         password: _passwordController.text,
+        fullName: _fullNameController.text.trim(),
+        phoneNumber: _phoneController.text.trim().isEmpty
+            ? null
+            : _phoneController.text.trim(),
       ),
     );
   }
 
-  void _onForgotPasswordPressed() {
-    // Navigate to forgot password page
-    Navigator.of(context).pushNamed('/forgot-password');
-  }
-
-  void _onSocialLoginPressed(BuildContext context, SocialProvider provider) {
-    // TODO: Implement social login when OAuth is added
+  void _onSocialRegisterPressed(BuildContext context, SocialProvider provider) {
     _showComingSoonDialog(provider.name);
   }
 
-  void _onSignUpPressed() {
-    // Navigate to registration page
-    Navigator.of(context, rootNavigator: true).pushNamed('/register');
+  void _onLoginPressed() {
+    Navigator.of(context, rootNavigator: true).pushNamed('/login');
   }
 
   // VALIDATION
 
+  void _clearErrors() {
+    setState(() {
+      _fullNameError = null;
+      _emailError = null;
+      _phoneError = null;
+      _passwordError = null;
+      _confirmPasswordError = null;
+    });
+  }
+
   bool _validateInputs() {
     bool isValid = true;
 
-    // Email validation
-    final email = _emailController.text.trim();
-    if (email.isEmpty) {
-      setState(() {
-        _emailError = 'El correo electrónico es requerido';
-      });
+    final fullName = _fullNameController.text.trim();
+    if (fullName.isEmpty) {
+      setState(() => _fullNameError = 'El nombre completo es requerido');
       isValid = false;
-    } else if (!_isValidEmail(email)) {
-      setState(() {
-        _emailError = 'Por favor ingresa un correo electrónico válido';
-      });
+    } else if (fullName.length < 2) {
+      setState(
+        () => _fullNameError = 'El nombre debe tener al menos 2 caracteres',
+      );
       isValid = false;
     }
 
-    // Password validation
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      setState(() => _emailError = 'El correo electrónico es requerido');
+      isValid = false;
+    } else if (!_isValidEmail(email)) {
+      setState(
+        () => _emailError = 'Por favor ingresa un correo electrónico válido',
+      );
+      isValid = false;
+    }
+
+    final phone = _phoneController.text.trim();
+    if (phone.isNotEmpty && !_isValidPeruPhone(phone)) {
+      setState(
+        () => _phoneError =
+            'Formato de teléfono inválido para Perú (+51XXXXXXXXX)',
+      );
+      isValid = false;
+    }
+
     final password = _passwordController.text;
     if (password.isEmpty) {
-      setState(() {
-        _passwordError = 'La contraseña es requerida';
-      });
+      setState(() => _passwordError = 'La contraseña es requerida');
+      isValid = false;
+    } else if (password.length < 8) {
+      setState(
+        () => _passwordError = 'La contraseña debe tener al menos 8 caracteres',
+      );
+      isValid = false;
+    } else if (!RegExp(
+      r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]',
+    ).hasMatch(password)) {
+      setState(
+        () => _passwordError =
+            'Por tu seguridad, la contraseña debe incluir mayúsculas, minúsculas, números y símbolos',
+      );
+      isValid = false;
+    }
+
+    final confirmPassword = _confirmPasswordController.text;
+    if (confirmPassword.isEmpty) {
+      setState(() => _confirmPasswordError = 'Confirma tu contraseña');
+      isValid = false;
+    } else if (password != confirmPassword) {
+      setState(() => _confirmPasswordError = 'Las contraseñas no coinciden');
       isValid = false;
     }
 
@@ -290,11 +355,16 @@ class _LoginPageState extends State<LoginPage> {
     return RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(email);
   }
 
+  bool _isValidPeruPhone(String phone) {
+    return RegExp(
+      r'^\+51[0-9]{9}$',
+    ).hasMatch(phone.replaceAll(RegExp(r'[\s-]'), ''));
+  }
+
   // STATE MANAGEMENT
 
   void _handleAuthStateChanges(BuildContext context, AuthState state) {
     if (state is AuthAuthenticated) {
-      // Navigate to main app
       Navigator.of(context).pushReplacementNamed('/home');
     } else if (state is AuthError) {
       _handleAuthError(state.message);
@@ -302,11 +372,10 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void _handleAuthError(String message) {
-    // Show error dialog
     showCupertinoDialog(
       context: context,
       builder: (context) => CupertinoAlertDialog(
-        title: const Text('Error de Inicio de Sesión'),
+        title: const Text('Error de Registro'),
         content: Text(message),
         actions: [
           CupertinoDialogAction(
@@ -323,9 +392,7 @@ class _LoginPageState extends State<LoginPage> {
       context: context,
       builder: (context) => CupertinoAlertDialog(
         title: const Text('Próximamente'),
-        content: Text(
-          'El inicio de sesión con $feature estará disponible pronto.',
-        ),
+        content: Text('El registro con $feature estará disponible pronto.'),
         actions: [
           CupertinoDialogAction(
             child: const Text('OK'),

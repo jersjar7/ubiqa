@@ -4,6 +4,8 @@ import 'package:ubiqa/services/0_config/shared/firebase_config.dart';
 import 'package:ubiqa/services/5_injection/dependency_container.dart';
 import 'package:ubiqa/ui/2_presentation/features/auth/flows/login_flow.dart';
 import 'package:ubiqa/ui/2_presentation/features/auth/flows/registration_flow.dart';
+import 'package:ubiqa/ui/2_presentation/features/auth/pages/auth_check_page.dart';
+import 'package:ubiqa/ui/2_presentation/features/auth/pages/home_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,22 +27,13 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      initialRoute: '/login',
+      initialRoute: '/',
       routes: {
+        '/': (context) => const AuthCheckPage(),
         '/login': (context) => const LoginFlow(),
         '/register': (context) => const RegistrationFlow(),
         '/home': (context) => const HomePage(),
       },
     );
-  }
-}
-
-// Placeholder home page
-class HomePage extends StatelessWidget {
-  const HomePage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(body: const Center(child: Text('Welcome to Ubiqa!')));
   }
 }

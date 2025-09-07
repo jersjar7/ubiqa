@@ -613,7 +613,7 @@ class FirebaseAuthService {
     required String phoneNumber,
   }) async {
     try {
-      print('DEBUG: Querying Firestore for phone: ${phoneNumber.trim()}');
+      print('DEBUG: Starting Firestore query for: ${phoneNumber.trim()}');
       final snapshot = await FirebaseCollections.users
           .where(
             'contactInfo.whatsappPhoneNumber',
@@ -621,11 +621,12 @@ class FirebaseAuthService {
           )
           .limit(1)
           .get();
-      print('DEBUG: Found ${snapshot.docs.length} documents');
 
+      print('DEBUG: Query completed, found ${snapshot.docs.length} documents');
       final isRegistered = snapshot.docs.isNotEmpty;
       return ServiceResult.success(isRegistered);
     } catch (e) {
+      print('DEBUG: Firestore query failed with error: $e');
       return ServiceResult.failure(
         'Phone number check failed',
         ServiceException(

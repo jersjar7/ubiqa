@@ -295,7 +295,7 @@ class _LoginPageState extends State<LoginPage> {
   void _handleAuthStateChanges(BuildContext context, AuthState state) {
     if (state is AuthAuthenticated) {
       // Navigate to main app
-      Navigator.of(context).pushReplacementNamed('/home');
+      Navigator.of(context, rootNavigator: true).pushReplacementNamed('/home');
     } else if (state is AuthError) {
       _handleAuthError(state.message);
     }

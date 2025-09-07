@@ -5,6 +5,7 @@ import 'package:ubiqa/models/1_domain/shared/entities/user.dart';
 
 // Import horizontal foundation - value objects
 import 'package:ubiqa/models/1_domain/shared/value_objects/contact_info.dart';
+import 'package:ubiqa/models/1_domain/shared/value_objects/international_phone_number.dart';
 
 // Import horizontal foundation - infrastructure
 import 'package:ubiqa/services/4_infrastructure/shared/service_result.dart';
@@ -14,14 +15,18 @@ import 'package:ubiqa/services/4_infrastructure/shared/service_result.dart';
 /// Defines authentication operations without implementation details.
 /// Implemented by coordinators layer, used by use cases layer.
 /// Uses ServiceResult for consistent error handling across all auth operations.
+///
+/// Updated: Now supports international phone numbers with country code context
 abstract class IAuthRepository {
   /// Register new user with email and password
   /// Creates user profile following domain validation rules
+  /// Supports international phone numbers for Peru and US markets
   Future<ServiceResult<User>> registerWithEmailAndPassword({
     required String email,
     required String password,
     String? fullName,
     String? phoneNumber,
+    SupportedCountryCode? countryCode,
   });
 
   /// Sign in existing user with email and password
@@ -41,6 +46,7 @@ abstract class IAuthRepository {
 
   /// Update user profile information
   /// Validates updates against domain rules before persisting
+  /// Supports international phone number updates
   Future<ServiceResult<User>> updateUserProfile({
     required User currentUser,
     String? fullName,
@@ -51,12 +57,14 @@ abstract class IAuthRepository {
 
   /// Send phone verification code to user
   /// Required for user verification in international markets (US, Peru)
+  /// Phone number should be in international format with country code
   Future<ServiceResult<void>> sendPhoneVerificationCode({
     required String phoneNumber,
   });
 
   /// Verify phone number with received code
   /// Marks user as verified enabling full platform features
+  /// Phone number should be in international format with country code
   Future<ServiceResult<User>> verifyPhoneNumber({
     required String phoneNumber,
     required String verificationCode,

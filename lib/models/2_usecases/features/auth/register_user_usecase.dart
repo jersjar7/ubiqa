@@ -3,6 +3,9 @@
 // Import horizontal foundation - domain entities
 import '../../../1_domain/shared/entities/user.dart';
 
+// Import horizontal foundation - value objects
+import '../../../1_domain/shared/value_objects/international_phone_number.dart';
+
 // Import horizontal foundation - infrastructure
 import '../../../../services/4_infrastructure/shared/service_result.dart';
 
@@ -14,6 +17,8 @@ import '../../../../services/1_contracts/features/auth/auth_repository.dart';
 /// Handles new user account creation with email and password.
 /// Encapsulates registration business logic and validation.
 /// Used by presentation layer for sign-up operations.
+///
+/// Updated: Now supports international phone numbers for Peru and US markets
 class RegisterUserUseCase {
   final IAuthRepository _authRepository;
 
@@ -23,11 +28,13 @@ class RegisterUserUseCase {
   ///
   /// Validates inputs and delegates to repository for account creation.
   /// Returns new user on success or error details on failure.
+  /// Supports international phone numbers with country code context
   Future<ServiceResult<User>> execute({
     required String email,
     required String password,
     String? fullName,
     String? phoneNumber,
+    SupportedCountryCode? countryCode,
   }) async {
     try {
       // Validate use case inputs
@@ -36,6 +43,7 @@ class RegisterUserUseCase {
         password: password,
         fullName: fullName,
         phoneNumber: phoneNumber,
+        countryCode: countryCode,
       );
 
       if (!validationResult.isSuccess) {
@@ -52,6 +60,7 @@ class RegisterUserUseCase {
             password: password,
             fullName: fullName?.trim(),
             phoneNumber: phoneNumber?.trim(),
+            countryCode: countryCode,
           );
 
       if (!registrationResult.isSuccess) {
@@ -82,6 +91,7 @@ class RegisterUserUseCase {
     required String password,
     String? fullName,
     String? phoneNumber,
+    SupportedCountryCode? countryCode,
   }) {
     // Check email presence and format
     if (email.trim().isEmpty) {
@@ -139,27 +149,74 @@ class RegisterUserUseCase {
       }
     }
 
-    // Validate Peru phone number if provided
+    // Validate international phone number if provided
     if (phoneNumber != null && phoneNumber.trim().isNotEmpty) {
-      final phoneValidation = _validatePeruPhoneNumber(phoneNumber.trim());
+      final phoneValidation = _validateInternationalPhoneNumber(
+        phoneNumber.trim(),
+        countryCode,
+      );
       if (!phoneValidation.isSuccess) return phoneValidation;
     }
 
     return ServiceResult.success(null);
   }
 
-  ServiceResult<void> _validatePeruPhoneNumber(String phoneNumber) {
-    // Peru phone number format: +51 followed by 9 digits
-    final peruPhoneRegex = RegExp(r'^\+51[0-9]{9}$');
-    if (!peruPhoneRegex.hasMatch(phoneNumber)) {
+  ServiceResult<void> _validateInternationalPhoneNumber(
+    String phoneNumber,
+    SupportedCountryCode? expectedCountryCode,
+  ) {
+    // Use domain service for international phone validation
+    if (!InternationalPhoneNumberDomainService.isValidInternationalPhoneNumber(
+      phoneNumber,
+    )) {
+      String errorMessage = 'Phone number must be in international format';
+
+      // Provide country-specific guidance
+      if (expectedCountryCode != null) {
+        final example =
+            InternationalPhoneNumberDomainService.getFormatExampleForCountry(
+              expectedCountryCode,
+            );
+        errorMessage += ' (example: $example)';
+      } else {
+        errorMessage += ' (+51XXXXXXXXX for Peru, +1XXXXXXXXXX for US)';
+      }
+
       return ServiceResult.failure(
         'Invalid phone number',
-        ServiceException(
-          'Phone number must be in format +51XXXXXXXXX',
-          ServiceErrorType.validation,
-        ),
+        ServiceException(errorMessage, ServiceErrorType.validation),
       );
     }
+
+    // Optional: Validate that phone number matches expected country
+    if (expectedCountryCode != null) {
+      try {
+        final internationalPhone = InternationalPhoneNumber.create(
+          phoneNumber: phoneNumber,
+        );
+        if (internationalPhone.detectedCountryCode != expectedCountryCode) {
+          return ServiceResult.failure(
+            'Phone number country mismatch',
+            ServiceException(
+              'Phone number does not match selected country (${expectedCountryCode.countryDisplayName})',
+              ServiceErrorType.validation,
+            ),
+          );
+        }
+      } catch (e) {
+        // Phone number creation failed, but we already validated format above
+        // This should not happen, but provide fallback error
+        return ServiceResult.failure(
+          'Phone number validation error',
+          ServiceException(
+            'Unable to validate phone number format',
+            ServiceErrorType.validation,
+            e,
+          ),
+        );
+      }
+    }
+
     return ServiceResult.success(null);
   }
 

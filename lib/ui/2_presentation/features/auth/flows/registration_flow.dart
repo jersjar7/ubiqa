@@ -87,7 +87,9 @@ class _RegistrationFlowState extends State<RegistrationFlow> {
 
       // Check if phone verification is needed
       if (user.contactInfo?.whatsappPhoneNumber != null && !user.isVerified()) {
-        _promptPhoneVerification(user.contactInfo!.whatsappPhoneNumber);
+        _promptPhoneVerification(
+          user.contactInfo!.whatsappPhoneNumber.phoneNumberWithCountryCode,
+        );
       } else {
         _navigateToHome();
       }

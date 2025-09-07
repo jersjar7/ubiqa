@@ -342,14 +342,16 @@ class UbiqaDomainOrchestrator {
 
     // Contact info should match user's verified contact info
     if (listing.contactInfo != null && user.contactInfo != null) {
-      final userPhone = user.contactInfo!.whatsappPhoneNumber.replaceAll(
-        RegExp(r'[^\d]'),
-        '',
-      );
-      final listingPhone = listing.contactInfo!.whatsappPhoneNumber.replaceAll(
-        RegExp(r'[^\d]'),
-        '',
-      );
+      final userPhone = user
+          .contactInfo!
+          .whatsappPhoneNumber
+          .phoneNumberWithCountryCode
+          .replaceAll(RegExp(r'[^\d]'), '');
+      final listingPhone = listing
+          .contactInfo!
+          .whatsappPhoneNumber
+          .phoneNumberWithCountryCode
+          .replaceAll(RegExp(r'[^\d]'), '');
 
       if (userPhone != listingPhone) {
         errors.add('Contact phone should match user verified phone number');

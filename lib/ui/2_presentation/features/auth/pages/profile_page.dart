@@ -54,7 +54,13 @@ class _ProfilePageState extends State<ProfilePage> {
   void _initializeControllers() {
     _nameController.text = widget.user.name ?? '';
     _emailController.text = widget.user.email;
-    _phoneController.text = widget.user.contactInfo?.whatsappPhoneNumber ?? '';
+    _phoneController.text =
+        widget
+            .user
+            .contactInfo
+            ?.whatsappPhoneNumber
+            .phoneNumberWithCountryCode ??
+        '';
     _selectedContactHours =
         widget.user.contactInfo?.preferredContactTimeSlot ??
         ContactHours.anytime;
@@ -285,7 +291,8 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildWhatsAppInfo() {
-    final phone = widget.user.contactInfo?.whatsappPhoneNumber;
+    final phone =
+        widget.user.contactInfo?.whatsappPhoneNumber.phoneNumberWithCountryCode;
 
     return Container(
       padding: const EdgeInsets.all(16.0),

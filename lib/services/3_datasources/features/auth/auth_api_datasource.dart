@@ -5,6 +5,7 @@ import '../../../../models/1_domain/shared/entities/user.dart';
 
 // Import horizontal foundation - value objects
 import 'package:ubiqa/models/1_domain/shared/value_objects/contact_info.dart';
+import 'package:ubiqa/models/1_domain/shared/value_objects/international_phone_number.dart';
 
 // Import horizontal foundation - infrastructure
 import 'package:ubiqa/services/4_infrastructure/shared/service_result.dart';
@@ -15,22 +16,27 @@ import '../../../4_infrastructure/firebase/firebase_auth_service.dart';
 /// Handles authentication operations through Firebase Auth infrastructure.
 /// Thin wrapper around FirebaseAuthService that follows datasource patterns.
 /// Returns ServiceResult for consistent error handling.
+///
+/// Updated: Now supports international phone numbers with country code context
 class AuthApiDataSource {
   final FirebaseAuthService _firebaseAuthService;
 
   AuthApiDataSource(this._firebaseAuthService);
 
   /// Register new user with Firebase Auth
+  /// Supports international phone numbers for Peru and US markets
   Future<ServiceResult<User>> registerWithEmailAndPassword({
     required String email,
     required String password,
     String? fullName,
     String? phoneNumber,
+    SupportedCountryCode? countryCode,
   }) async {
     return await _firebaseAuthService.registerWithEmailAndPassword(
       email: email,
       password: password,
       displayName: fullName,
+      countryCode: countryCode,
     );
   }
 
@@ -56,6 +62,7 @@ class AuthApiDataSource {
   }
 
   /// Update user profile through Firebase services
+  /// Supports international phone number updates
   Future<ServiceResult<User>> updateUserProfile({
     required User currentUser,
     String? fullName,
@@ -73,6 +80,7 @@ class AuthApiDataSource {
   }
 
   /// Send phone verification code via Firebase Auth
+  /// Phone number should be in international format
   Future<ServiceResult<void>> sendPhoneVerificationCode({
     required String phoneNumber,
   }) async {
@@ -82,6 +90,7 @@ class AuthApiDataSource {
   }
 
   /// Verify phone number with Firebase Auth
+  /// Phone number should be in international format
   Future<ServiceResult<User>> verifyPhoneNumber({
     required String phoneNumber,
     required String verificationCode,

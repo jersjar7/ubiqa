@@ -46,11 +46,11 @@ enum ContactHours {
 /// channel in Peru's real estate market, requiring phone validation and
 /// preference management for successful property transactions.
 ///
-/// V1 Scope: WhatsApp contact with basic preferences
+/// Updated: Now supports international phone numbers (Peru + US) with future extensibility
 class ContactInfo extends Equatable {
-  /// WhatsApp phone number with international format
-  /// Stored as provided by user to maintain their preferred input format
-  final String whatsappPhoneNumber;
+  /// WhatsApp phone number with international validation
+  /// Uses InternationalPhoneNumber for comprehensive validation and formatting
+  final InternationalPhoneNumber whatsappPhoneNumber;
 
   /// Preferred contact hours
   /// Reduces friction by managing buyer-seller communication timing expectations
@@ -73,13 +73,19 @@ class ContactInfo extends Equatable {
     required ContactHours preferredContactTimeSlot,
     String? additionalContactNotes,
   }) {
+    // Create and validate international phone number first
+    final internationalPhone = InternationalPhoneNumber.create(
+      phoneNumber: whatsappPhoneNumber.trim(),
+    );
+
     final contactInfo = ContactInfo._(
-      whatsappPhoneNumber: whatsappPhoneNumber.trim(),
+      whatsappPhoneNumber: internationalPhone,
       preferredContactTimeSlot: preferredContactTimeSlot,
       additionalContactNotes: additionalContactNotes?.trim(),
     );
 
-    final violations = contactInfo._validateContactFields();
+    // Validate additional contact info fields
+    final violations = contactInfo._validateAdditionalContactFields();
     if (violations.isNotEmpty) {
       throw ContactInfoValidationException(
         'Invalid contact information',
@@ -108,15 +114,11 @@ class ContactInfo extends Equatable {
   /// Generates WhatsApp contact URL for direct messaging
   /// Returns wa.me URL because it works universally across all devices and WhatsApp installations
   String generateWhatsAppContactUrl([String? prefilledMessage]) {
-    final cleanedPhoneNumber = whatsappPhoneNumber.replaceAll(
-      RegExp(r'[^\d]'),
-      '',
-    );
-    final internationalPhoneFormat = cleanedPhoneNumber.startsWith('51')
-        ? cleanedPhoneNumber
-        : '51$cleanedPhoneNumber';
+    // Get E.164 format and remove + prefix for WhatsApp URL
+    final e164Number = whatsappPhoneNumber.getE164Format();
+    final cleanedNumber = e164Number.substring(1); // Remove + prefix
 
-    final baseUrl = 'https://wa.me/$internationalPhoneFormat';
+    final baseUrl = 'https://wa.me/$cleanedNumber';
 
     if (prefilledMessage?.isNotEmpty == true) {
       final encodedMessage = Uri.encodeComponent(prefilledMessage!);
@@ -159,22 +161,9 @@ class ContactInfo extends Equatable {
   // DISPLAY AND FORMATTING
 
   /// Formats phone number for consistent UI display across all components
-  /// Standardizes format to match Peruvian phone number conventions users expect
+  /// Uses international formatting from InternationalPhoneNumber for country-specific display
   String getFormattedPhoneNumberForDisplay() {
-    final cleanedDigits = whatsappPhoneNumber.replaceAll(RegExp(r'[^\d]'), '');
-
-    // Handle 9-digit format (999 999 999) - most common user input
-    if (cleanedDigits.length == 9 && cleanedDigits.startsWith('9')) {
-      return '+51 ${cleanedDigits.substring(0, 3)} ${cleanedDigits.substring(3, 6)} ${cleanedDigits.substring(6)}';
-    }
-
-    // Handle 11-digit format with country code (51999999999)
-    if (cleanedDigits.length == 11 && cleanedDigits.startsWith('519')) {
-      final mobileDigits = cleanedDigits.substring(2);
-      return '+51 ${mobileDigits.substring(0, 3)} ${mobileDigits.substring(3, 6)} ${mobileDigits.substring(6)}';
-    }
-
-    return whatsappPhoneNumber; // Fallback to preserve original input
+    return whatsappPhoneNumber.getFormattedPhoneNumberForDisplay();
   }
 
   /// Generates contact summary for property listings display
@@ -197,19 +186,24 @@ class ContactInfo extends Equatable {
         : null;
   }
 
+  /// Gets the detected country code for business logic
+  /// Enables country-specific features and validation
+  SupportedCountryCode getDetectedCountryCode() {
+    return whatsappPhoneNumber.detectedCountryCode;
+  }
+
+  /// Gets the raw phone number with country code
+  /// For storage and API integrations that need the full international format
+  String getInternationalPhoneNumber() {
+    return whatsappPhoneNumber.phoneNumberWithCountryCode;
+  }
+
   // VALIDATION
 
-  /// Validates all contact information fields
-  /// Comprehensive validation prevents runtime errors and improves user experience
-  List<String> _validateContactFields() {
+  /// Validates additional contact information fields
+  /// Phone validation is now handled by InternationalPhoneNumber creation
+  List<String> _validateAdditionalContactFields() {
     final validationErrors = <String>[];
-
-    // WhatsApp number validation is critical for core functionality
-    if (!_isValidInternationalMobileNumber(whatsappPhoneNumber)) {
-      validationErrors.add(
-        'WhatsApp number must be a valid US or Peru mobile number',
-      );
-    }
 
     // Additional notes validation prevents abuse and maintains professionalism
     if (additionalContactNotes != null) {
@@ -226,14 +220,6 @@ class ContactInfo extends Equatable {
     }
 
     return validationErrors;
-  }
-
-  /// Validates international mobile phone format for WhatsApp compatibility
-  /// US and Peru mobile numbers have specific patterns that WhatsApp recognizes
-  bool _isValidInternationalMobileNumber(String phoneNumber) {
-    return InternationalPhoneNumberDomainService.isValidInternationalPhoneNumber(
-      phoneNumber,
-    );
   }
 
   // VALUE OBJECT EQUALITY - Based on all fields
@@ -298,7 +284,7 @@ class ContactInfoDomainService {
     String? newAdditionalContactNotes,
   }) {
     return ContactInfo.create(
-      whatsappPhoneNumber: existingContactInfo.whatsappPhoneNumber,
+      whatsappPhoneNumber: existingContactInfo.getInternationalPhoneNumber(),
       preferredContactTimeSlot:
           newPreferredContactTimeSlot ??
           existingContactInfo.preferredContactTimeSlot,
@@ -315,13 +301,18 @@ class ContactInfoDomainService {
   ) {
     final listingValidationErrors = <String>[];
 
-    // Must have valid WhatsApp number for core functionality
-    if (!contactInfo._isValidInternationalMobileNumber(
-      contactInfo.whatsappPhoneNumber,
-    )) {
-      listingValidationErrors.add(
-        'Valid WhatsApp number required for property listings',
-      );
+    // Phone validation is automatically handled by InternationalPhoneNumber
+    // Additional WhatsApp-specific validation for listings
+    final countryCode = contactInfo.getDetectedCountryCode();
+
+    // Country-specific validation rules
+    switch (countryCode) {
+      case SupportedCountryCode.peru:
+        // Peru-specific business rules can go here
+        break;
+      case SupportedCountryCode.unitedStates:
+        // US-specific business rules can go here
+        break;
     }
 
     // Instructions must maintain professional tone for marketplace trust
@@ -374,5 +365,21 @@ class ContactInfoDomainService {
       case ContactHours.anytime:
         return currentHour >= 7 && currentHour < 23; // Reasonable hours only
     }
+  }
+
+  /// Gets country-specific formatting example for help text
+  /// Helps users understand expected phone number format
+  static String getPhoneFormatExampleForCountry(SupportedCountryCode country) {
+    return InternationalPhoneNumberDomainService.getFormatExampleForCountry(
+      country,
+    );
+  }
+
+  /// Validates phone number format without creating ContactInfo object
+  /// Useful for real-time validation in UI forms
+  static bool isValidPhoneNumberFormat(String phoneNumber) {
+    return InternationalPhoneNumberDomainService.isValidInternationalPhoneNumber(
+      phoneNumber,
+    );
   }
 }

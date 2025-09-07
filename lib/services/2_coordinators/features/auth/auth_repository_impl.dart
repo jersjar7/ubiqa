@@ -5,6 +5,7 @@ import '../../../../models/1_domain/shared/entities/user.dart';
 
 // Import horizontal foundation - value objects
 import '../../../../models/1_domain/shared/value_objects/contact_info.dart';
+import '../../../../models/1_domain/shared/value_objects/international_phone_number.dart';
 
 // Import horizontal foundation - infrastructure
 import '../../../4_infrastructure/shared/service_result.dart';
@@ -19,7 +20,7 @@ import '../../../3_datasources/features/auth/auth_api_datasource.dart';
 ///
 /// Coordinates authentication operations between datasources and domain layer.
 /// Implements business rules and domain validation for auth operations.
-/// Handles Peru market-specific requirements like phone verification.
+/// Updated: Now handles international phone numbers for Peru and US markets.
 class AuthRepositoryImpl implements IAuthRepository {
   final AuthApiDataSource _authDataSource;
 
@@ -31,6 +32,7 @@ class AuthRepositoryImpl implements IAuthRepository {
     required String password,
     String? fullName,
     String? phoneNumber,
+    SupportedCountryCode? countryCode,
   }) async {
     try {
       // Validate registration inputs according to domain rules
@@ -39,6 +41,7 @@ class AuthRepositoryImpl implements IAuthRepository {
         password: password,
         fullName: fullName,
         phoneNumber: phoneNumber,
+        countryCode: countryCode,
       );
 
       if (!validationResult.isSuccess) {
@@ -55,6 +58,7 @@ class AuthRepositoryImpl implements IAuthRepository {
             password: password,
             fullName: fullName,
             phoneNumber: phoneNumber,
+            countryCode: countryCode,
           );
 
       if (!registrationResult.isSuccess) {
@@ -220,8 +224,8 @@ class AuthRepositoryImpl implements IAuthRepository {
     required String phoneNumber,
   }) async {
     try {
-      // Validate phone number format for Peru market
-      final validationResult = _validatePeruPhoneNumber(phoneNumber);
+      // Validate international phone number format
+      final validationResult = _validateInternationalPhoneNumber(phoneNumber);
 
       if (!validationResult.isSuccess) {
         return ServiceResult.failure(
@@ -385,6 +389,7 @@ class AuthRepositoryImpl implements IAuthRepository {
     required String password,
     String? fullName,
     String? phoneNumber,
+    SupportedCountryCode? countryCode,
   }) {
     // Email validation
     final emailValidation = _validateEmailFormat(email);
@@ -394,9 +399,12 @@ class AuthRepositoryImpl implements IAuthRepository {
     final passwordValidation = _validatePasswordStrength(password);
     if (!passwordValidation.isSuccess) return passwordValidation;
 
-    // Optional phone number validation for Peru market
+    // International phone number validation if provided
     if (phoneNumber != null && phoneNumber.isNotEmpty) {
-      final phoneValidation = _validatePeruPhoneNumber(phoneNumber);
+      final phoneValidation = _validateInternationalPhoneNumber(
+        phoneNumber,
+        expectedCountryCode: countryCode,
+      );
       if (!phoneValidation.isSuccess) return phoneValidation;
     }
 
@@ -432,9 +440,9 @@ class AuthRepositoryImpl implements IAuthRepository {
     ContactHours? preferredContactHours,
     String? profileImageUrl,
   }) {
-    // Validate phone number if provided
+    // Validate phone number if provided using international validation
     if (phoneNumber != null && phoneNumber.isNotEmpty) {
-      final phoneValidation = _validatePeruPhoneNumber(phoneNumber);
+      final phoneValidation = _validateInternationalPhoneNumber(phoneNumber);
       if (!phoneValidation.isSuccess) return phoneValidation;
     }
 
@@ -451,8 +459,8 @@ class AuthRepositoryImpl implements IAuthRepository {
     required String phoneNumber,
     required String verificationCode,
   }) {
-    // Phone number validation
-    final phoneValidation = _validatePeruPhoneNumber(phoneNumber);
+    // International phone number validation
+    final phoneValidation = _validateInternationalPhoneNumber(phoneNumber);
     if (!phoneValidation.isSuccess) return phoneValidation;
 
     // Verification code validation
@@ -496,18 +504,60 @@ class AuthRepositoryImpl implements IAuthRepository {
     return ServiceResult.success(null);
   }
 
-  ServiceResult<void> _validatePeruPhoneNumber(String phoneNumber) {
-    // Peru phone number format: +51 followed by 9 digits
-    final peruPhoneRegex = RegExp(r'^\+51[0-9]{9}$');
-    if (!peruPhoneRegex.hasMatch(phoneNumber.trim())) {
+  ServiceResult<void> _validateInternationalPhoneNumber(
+    String phoneNumber, {
+    SupportedCountryCode? expectedCountryCode,
+  }) {
+    // Use domain service for international phone validation
+    if (!InternationalPhoneNumberDomainService.isValidInternationalPhoneNumber(
+      phoneNumber,
+    )) {
+      String errorMessage = 'Phone number must be in international format';
+
+      // Provide country-specific guidance if expected country is known
+      if (expectedCountryCode != null) {
+        final example =
+            InternationalPhoneNumberDomainService.getFormatExampleForCountry(
+              expectedCountryCode,
+            );
+        errorMessage += ' (example: $example)';
+      } else {
+        errorMessage += ' (+51XXXXXXXXX for Peru, +1XXXXXXXXXX for US)';
+      }
+
       return ServiceResult.failure(
-        'Invalid Peru phone number',
-        ServiceException(
-          'Phone number must be in format +51XXXXXXXXX',
-          ServiceErrorType.validation,
-        ),
+        'Invalid phone number format',
+        ServiceException(errorMessage, ServiceErrorType.validation),
       );
     }
+
+    // Optional: Validate that phone number matches expected country
+    if (expectedCountryCode != null) {
+      try {
+        final internationalPhone = InternationalPhoneNumber.create(
+          phoneNumber: phoneNumber,
+        );
+        if (internationalPhone.detectedCountryCode != expectedCountryCode) {
+          return ServiceResult.failure(
+            'Phone number country mismatch',
+            ServiceException(
+              'Phone number does not match selected country (${expectedCountryCode.countryDisplayName})',
+              ServiceErrorType.validation,
+            ),
+          );
+        }
+      } on InternationalPhoneNumberValidationException catch (e) {
+        return ServiceResult.failure(
+          'Phone number validation error',
+          ServiceException(
+            e.violations.join(', '),
+            ServiceErrorType.validation,
+            e,
+          ),
+        );
+      }
+    }
+
     return ServiceResult.success(null);
   }
 

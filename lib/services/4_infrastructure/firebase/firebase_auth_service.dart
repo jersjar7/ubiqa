@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 // Import domain entities and value objects
 import '../../../models/1_domain/shared/entities/user.dart';
 import '../../../models/1_domain/shared/value_objects/contact_info.dart';
+import '../../../models/1_domain/shared/value_objects/international_phone_number.dart';
 
 // Import configuration
 import '../../0_config/shared/firebase_config.dart';
@@ -17,7 +18,9 @@ import '../shared/service_result.dart';
 ///
 /// Implements user authentication and profile management infrastructure
 /// following the domain layer contracts defined in User entity and
-/// ContactInfo value object. Integrates with Peru market requirements.
+/// ContactInfo value object.
+///
+/// Updated: Now supports international markets (Peru + US) with country-specific handling.
 class FirebaseAuthService {
   final firebase_auth.FirebaseAuth _firebaseAuth;
 
@@ -27,13 +30,15 @@ class FirebaseAuthService {
 
   /// Registers new user with email and password
   /// Creates User entity and persists to Firestore following domain rules
+  /// Supports international phone numbers for Peru and US markets
   Future<ServiceResult<User>> registerWithEmailAndPassword({
     required String email,
     required String password,
     String? displayName,
+    SupportedCountryCode? countryCode,
   }) async {
     try {
-      // Validate email format for Peru market
+      // Validate email format
       if (!_isValidEmailFormat(email)) {
         return ServiceResult.failure(
           'Invalid email format',
@@ -73,8 +78,11 @@ class FirebaseAuthService {
         displayName: displayName,
       );
 
-      // Persist user to Firestore
-      final persistResult = await _persistUserToFirestore(user);
+      // Persist user to Firestore with country context
+      final persistResult = await _persistUserToFirestore(
+        user,
+        countryCode: countryCode,
+      );
       if (!persistResult.isSuccess) {
         // Rollback Firebase Auth user if Firestore fails
         await credential.user!.delete();
@@ -236,8 +244,7 @@ class FirebaseAuthService {
         name: name,
         phoneNumber: phoneNumber,
         preferredHours: preferredContactHours,
-        contactInstructions:
-            profileImageUrl, // Note: may need to adjust this mapping
+        contactInstructions: null, // Profile image URL is handled separately
       );
 
       // Persist updated profile to Firestore
@@ -276,7 +283,7 @@ class FirebaseAuthService {
   }
 
   /// Sets or updates user contact information
-  /// Validates WhatsApp number for Peru market requirements
+  /// Validates international phone numbers for supported markets
   Future<ServiceResult<User>> setUserContactInfo({
     required User currentUser,
     required String whatsappPhoneNumber,
@@ -427,19 +434,29 @@ class FirebaseAuthService {
     }
   }
 
-  // PHONE VERIFICATION (Peru Market Critical)
+  // PHONE VERIFICATION (International Markets)
 
-  /// Sends SMS verification code to phone number
-  /// Critical for Peru market user verification requirements
+  /// Sends SMS verification code to international phone number
+  /// Supports Peru (+51) and US (+1) phone numbers
   Future<ServiceResult<void>> sendPhoneVerificationCode({
     required String phoneNumber,
   }) async {
     try {
-      // Format Peru phone number (+51)
-      final formattedPhone = _formatPeruPhoneNumber(phoneNumber);
+      // Validate international phone number format
+      if (!InternationalPhoneNumberDomainService.isValidInternationalPhoneNumber(
+        phoneNumber,
+      )) {
+        return ServiceResult.failure(
+          'Invalid phone number format',
+          ServiceException(
+            'Phone number must be in international format (+51XXXXXXXXX or +1XXXXXXXXXX)',
+            ServiceErrorType.validation,
+          ),
+        );
+      }
 
       await _firebaseAuth.verifyPhoneNumber(
-        phoneNumber: formattedPhone,
+        phoneNumber: phoneNumber, // Already in international format
         verificationCompleted: (firebase_auth.PhoneAuthCredential credential) {
           // Auto-verification completed (Android only)
         },
@@ -501,12 +518,30 @@ class FirebaseAuthService {
         );
       }
 
+      // Detect country from phone number for appropriate verification message
+      String verificationMessage = 'Número verificado';
+      try {
+        final internationalPhone = InternationalPhoneNumber.create(
+          phoneNumber: phoneNumber,
+        );
+        switch (internationalPhone.detectedCountryCode) {
+          case SupportedCountryCode.peru:
+            verificationMessage = 'Número verificado';
+            break;
+          case SupportedCountryCode.unitedStates:
+            verificationMessage = 'Number verified';
+            break;
+        }
+      } catch (e) {
+        // Use default message if country detection fails
+      }
+
       // Set contact info with verified phone
       final verifiedUser = await setUserContactInfo(
         currentUser: userResult.data!,
         whatsappPhoneNumber: phoneNumber,
         preferredContactHours: ContactHours.anytime,
-        additionalContactNotes: 'Número verificado',
+        additionalContactNotes: verificationMessage,
       );
 
       return verifiedUser;
@@ -608,10 +643,13 @@ class FirebaseAuthService {
 
   // PRIVATE HELPER METHODS
 
-  /// Persists User entity to Firestore
-  Future<ServiceResult<void>> _persistUserToFirestore(User user) async {
+  /// Persists User entity to Firestore with optional country context
+  Future<ServiceResult<void>> _persistUserToFirestore(
+    User user, {
+    SupportedCountryCode? countryCode,
+  }) async {
     try {
-      final userData = _userToFirestoreData(user);
+      final userData = _userToFirestoreData(user, countryCode: countryCode);
 
       await FirebaseCollections.users
           .doc(user.id.value)
@@ -627,7 +665,11 @@ class FirebaseAuthService {
   }
 
   /// Converts User entity to Firestore document data
-  Map<String, dynamic> _userToFirestoreData(User user) {
+  /// Updated to handle InternationalPhoneNumber objects
+  Map<String, dynamic> _userToFirestoreData(
+    User user, {
+    SupportedCountryCode? countryCode,
+  }) {
     final data = <String, dynamic>{
       'email': user.email,
       'name': user.name,
@@ -636,10 +678,16 @@ class FirebaseAuthService {
       'isActive': user.isActive,
     };
 
+    // Add country code if provided during registration
+    if (countryCode != null) {
+      data['registrationCountryCode'] = countryCode.name;
+    }
+
     // Add contact info if present
     if (user.contactInfo != null) {
       data['contactInfo'] = {
-        'whatsappPhoneNumber': user.contactInfo!.whatsappPhoneNumber,
+        'whatsappPhoneNumber': user.contactInfo!.getInternationalPhoneNumber(),
+        'countryCode': user.contactInfo!.getDetectedCountryCode().name,
         'preferredContactTimeSlot':
             user.contactInfo!.preferredContactTimeSlot.name,
         'additionalContactNotes': user.contactInfo!.additionalContactNotes,
@@ -650,6 +698,7 @@ class FirebaseAuthService {
   }
 
   /// Reconstructs User entity from Firestore document data
+  /// Updated to handle InternationalPhoneNumber objects
   User _userFromFirestoreData(Map<String, dynamic> data, String firebaseUid) {
     // Extract basic user data
     final email = data['email'] as String;
@@ -670,8 +719,11 @@ class FirebaseAuthService {
         orElse: () => ContactHours.anytime,
       );
 
+      // Use the international phone number from storage
+      final phoneNumber = contactData['whatsappPhoneNumber'] as String;
+
       contactInfo = ContactInfo.create(
-        whatsappPhoneNumber: contactData['whatsappPhoneNumber'] as String,
+        whatsappPhoneNumber: phoneNumber,
         preferredContactTimeSlot: contactHours,
         additionalContactNotes:
             contactData['additionalContactNotes'] as String?,
@@ -690,22 +742,7 @@ class FirebaseAuthService {
     );
   }
 
-  /// Formats Peru phone number for Firebase Auth
-  String _formatPeruPhoneNumber(String phoneNumber) {
-    // Remove all non-digits
-    final digitsOnly = phoneNumber.replaceAll(RegExp(r'[^\d]'), '');
-
-    // Add Peru country code if not present
-    if (digitsOnly.startsWith('51')) {
-      return '+$digitsOnly';
-    } else if (digitsOnly.startsWith('9') && digitsOnly.length == 9) {
-      return '+51$digitsOnly';
-    } else {
-      return '+51$digitsOnly';
-    }
-  }
-
-  /// Validates email format for Peru market
+  /// Validates email format
   bool _isValidEmailFormat(String email) {
     final emailRegex = RegExp(
       r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',

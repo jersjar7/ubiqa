@@ -36,6 +36,7 @@ class AuthApiDataSource {
       email: email,
       password: password,
       displayName: fullName,
+      phoneNumber: phoneNumber,
       countryCode: countryCode,
     );
   }
@@ -111,6 +112,16 @@ class AuthApiDataSource {
   /// Check email registration status via Firebase Auth
   Future<ServiceResult<bool>> isEmailRegistered({required String email}) async {
     return await _firebaseAuthService.isEmailRegistered(email: email);
+  }
+
+  /// Check if phone number is already registered via Firebase services
+  /// Phone number should be in international format
+  Future<ServiceResult<bool>> isPhoneNumberRegistered({
+    required String phoneNumber,
+  }) async {
+    return await _firebaseAuthService.isPhoneNumberRegistered(
+      phoneNumber: phoneNumber,
+    );
   }
 
   /// Delete user account through Firebase Auth

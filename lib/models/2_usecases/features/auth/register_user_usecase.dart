@@ -38,7 +38,8 @@ class RegisterUserUseCase {
   }) async {
     try {
       // Validate use case inputs
-      final validationResult = _validateRegistrationInputs(
+      print('DEBUG: Use case - validating inputs');
+      final validationResult = await _validateRegistrationInputs(
         email: email,
         password: password,
         fullName: fullName,
@@ -47,13 +48,17 @@ class RegisterUserUseCase {
       );
 
       if (!validationResult.isSuccess) {
-        return ServiceResult.failure(
-          'Registration validation failed',
+        print(
+          'DEBUG: Use case validation failed: ${validationResult.exception}',
+        );
+        return ServiceResult<User>.failure(
+          validationResult.exception!.message,
           validationResult.exception!,
         );
       }
 
       // Execute registration through repository
+      print('DEBUG: Use case - calling repository');
       final registrationResult = await _authRepository
           .registerWithEmailAndPassword(
             email: email.trim(),
@@ -63,7 +68,11 @@ class RegisterUserUseCase {
             countryCode: countryCode,
           );
 
+      print(
+        'DEBUG: Repository result - Success: ${registrationResult.isSuccess}',
+      );
       if (!registrationResult.isSuccess) {
+        print('DEBUG: Repository error: ${registrationResult.exception}');
         return _mapRegistrationError(registrationResult);
       }
 
@@ -74,9 +83,9 @@ class RegisterUserUseCase {
       return ServiceResult.success(processedUser);
     } catch (e) {
       return ServiceResult.failure(
-        'Registration execution failed',
+        'Ejecución del registro falló',
         ServiceException(
-          'Unexpected registration error',
+          'Error inesperado de registro',
           ServiceErrorType.unknown,
           e,
         ),
@@ -86,19 +95,19 @@ class RegisterUserUseCase {
 
   // PRIVATE: Input validation
 
-  ServiceResult<void> _validateRegistrationInputs({
+  Future<ServiceResult<void>> _validateRegistrationInputs({
     required String email,
     required String password,
     String? fullName,
     String? phoneNumber,
     SupportedCountryCode? countryCode,
-  }) {
+  }) async {
     // Check email presence and format
     if (email.trim().isEmpty) {
       return ServiceResult.failure(
-        'Email required',
+        'Correo electrónico requerido',
         ServiceException(
-          'Email address cannot be empty',
+          'El correo electrónico no puede estar vacío',
           ServiceErrorType.validation,
         ),
       );
@@ -107,9 +116,9 @@ class RegisterUserUseCase {
     final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+$');
     if (!emailRegex.hasMatch(email.trim())) {
       return ServiceResult.failure(
-        'Invalid email format',
+        'Formato de correo electrónico inválido',
         ServiceException(
-          'Please enter a valid email address',
+          'Por favor ingresa un correo electrónico válido',
           ServiceErrorType.validation,
         ),
       );
@@ -118,9 +127,9 @@ class RegisterUserUseCase {
     // Check password presence and strength
     if (password.trim().isEmpty) {
       return ServiceResult.failure(
-        'Password required',
+        'Contraseña requerida',
         ServiceException(
-          'Password cannot be empty',
+          'La contraseña no puede estar vacía',
           ServiceErrorType.validation,
         ),
       );
@@ -128,9 +137,9 @@ class RegisterUserUseCase {
 
     if (password.length < 8) {
       return ServiceResult.failure(
-        'Password too weak',
+        'Contraseña muy débil',
         ServiceException(
-          'Password must be at least 8 characters long',
+          'La contraseña debe tener al menos 8 caracteres',
           ServiceErrorType.validation,
         ),
       );
@@ -140,9 +149,9 @@ class RegisterUserUseCase {
     if (fullName != null && fullName.trim().isNotEmpty) {
       if (fullName.trim().length < 2) {
         return ServiceResult.failure(
-          'Invalid name',
+          'Nombre inválido',
           ServiceException(
-            'Name must be at least 2 characters long',
+            'El nombre debe tener al menos 2 caracteres',
             ServiceErrorType.validation,
           ),
         );
@@ -156,6 +165,32 @@ class RegisterUserUseCase {
         countryCode,
       );
       if (!phoneValidation.isSuccess) return phoneValidation;
+
+      // Check for duplicate phone number
+      print('DEBUG: Checking phone duplicate for: ${phoneNumber.trim()}');
+      final phoneCheckResult = await _authRepository.isPhoneNumberRegistered(
+        phoneNumber: phoneNumber.trim(),
+      );
+      print(
+        'DEBUG: Phone check result - exists: ${phoneCheckResult.data}, success: ${phoneCheckResult.isSuccess}',
+      );
+
+      if (!phoneCheckResult.isSuccess) {
+        return ServiceResult.failure(
+          'Verificación de teléfono falló',
+          phoneCheckResult.exception!,
+        );
+      }
+
+      if (phoneCheckResult.data == true) {
+        return ServiceResult.failure(
+          'Número de teléfono ya registrado',
+          ServiceException(
+            'Este número de teléfono ya está en uso. Por favor usa un número diferente.',
+            ServiceErrorType.validation,
+          ),
+        );
+      }
     }
 
     return ServiceResult.success(null);
@@ -169,7 +204,8 @@ class RegisterUserUseCase {
     if (!InternationalPhoneNumberDomainService.isValidInternationalPhoneNumber(
       phoneNumber,
     )) {
-      String errorMessage = 'Phone number must be in international format';
+      String errorMessage =
+          'El número de teléfono debe estar en formato internacional';
 
       // Provide country-specific guidance
       if (expectedCountryCode != null) {
@@ -177,13 +213,14 @@ class RegisterUserUseCase {
             InternationalPhoneNumberDomainService.getFormatExampleForCountry(
               expectedCountryCode,
             );
-        errorMessage += ' (example: $example)';
+        errorMessage += ' (ejemplo: $example)';
       } else {
-        errorMessage += ' (+51XXXXXXXXX for Peru, +1XXXXXXXXXX for US)';
+        errorMessage +=
+            ' (+51XXXXXXXXX para Perú, +1XXXXXXXXXX para Estados Unidos)';
       }
 
       return ServiceResult.failure(
-        'Invalid phone number',
+        'Número de teléfono inválido',
         ServiceException(errorMessage, ServiceErrorType.validation),
       );
     }
@@ -196,9 +233,9 @@ class RegisterUserUseCase {
         );
         if (internationalPhone.detectedCountryCode != expectedCountryCode) {
           return ServiceResult.failure(
-            'Phone number country mismatch',
+            'El país del número de teléfono no coincide',
             ServiceException(
-              'Phone number does not match selected country (${expectedCountryCode.countryDisplayName})',
+              'El número de teléfono no coincide con el país seleccionado (${expectedCountryCode.countryDisplayName})',
               ServiceErrorType.validation,
             ),
           );
@@ -207,9 +244,9 @@ class RegisterUserUseCase {
         // Phone number creation failed, but we already validated format above
         // This should not happen, but provide fallback error
         return ServiceResult.failure(
-          'Phone number validation error',
+          'Error de validación del número de teléfono',
           ServiceException(
-            'Unable to validate phone number format',
+            'No se pudo validar el formato del número de teléfono',
             ServiceErrorType.validation,
             e,
           ),
@@ -231,9 +268,9 @@ class RegisterUserUseCase {
     switch (originalError.type) {
       case ServiceErrorType.authentication:
         return ServiceResult.failure(
-          'Email already registered',
+          'Correo electrónico ya registrado',
           ServiceException(
-            'This email is already in use. Please try signing in instead.',
+            'Este correo electrónico ya está en uso. Por favor intenta iniciar sesión en su lugar.',
             ServiceErrorType.authentication,
             originalError.originalError,
           ),
@@ -241,9 +278,9 @@ class RegisterUserUseCase {
 
       case ServiceErrorType.network:
         return ServiceResult.failure(
-          'Connection error',
+          'Error de conexión',
           ServiceException(
-            'Please check your internet connection and try again',
+            'Por favor verifica tu conexión a internet e intenta de nuevo',
             ServiceErrorType.network,
             originalError.originalError,
           ),
@@ -251,9 +288,9 @@ class RegisterUserUseCase {
 
       case ServiceErrorType.validation:
         return ServiceResult.failure(
-          'Registration validation failed',
+          'Validación de registro falló',
           ServiceException(
-            'Please check your information and try again',
+            'Por favor verifica tu información e intenta de nuevo',
             ServiceErrorType.validation,
             originalError.originalError,
           ),
@@ -261,9 +298,9 @@ class RegisterUserUseCase {
 
       case ServiceErrorType.business:
         return ServiceResult.failure(
-          'Registration not allowed',
+          'Registro no permitido',
           ServiceException(
-            'Registration is temporarily unavailable. Please try again later.',
+            'El registro está temporalmente no disponible. Por favor intenta más tarde.',
             ServiceErrorType.business,
             originalError.originalError,
           ),
@@ -271,9 +308,9 @@ class RegisterUserUseCase {
 
       default:
         return ServiceResult.failure(
-          'Registration failed',
+          'Registro falló',
           ServiceException(
-            'Something went wrong. Please try again.',
+            'Algo salió mal. Por favor intenta de nuevo.',
             ServiceErrorType.unknown,
             originalError.originalError,
           ),

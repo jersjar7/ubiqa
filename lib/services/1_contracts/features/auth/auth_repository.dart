@@ -78,6 +78,13 @@ abstract class IAuthRepository {
   /// Useful for registration flow UX
   Future<ServiceResult<bool>> isEmailRegistered({required String email});
 
+  /// Check if phone number is already registered
+  /// Prevents duplicate WhatsApp numbers for contact integrity
+  /// Phone number should be in international format with country code
+  Future<ServiceResult<bool>> isPhoneNumberRegistered({
+    required String phoneNumber,
+  });
+
   /// Delete user account and all associated data
   /// Permanent operation - requires user confirmation
   Future<ServiceResult<void>> deleteUserAccount({required User user});

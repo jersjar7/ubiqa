@@ -24,6 +24,7 @@ import '../../../../models/2_usecases/features/auth/send_phone_verification_usec
 import '../../../../models/2_usecases/features/auth/verify_phone_number_usecase.dart';
 import '../../../../models/2_usecases/features/auth/request_password_reset_usecase.dart';
 import '../../../../models/2_usecases/features/auth/check_email_registration_usecase.dart';
+import '../../../../models/2_usecases/features/auth/check_phone_registration_usecase.dart';
 import '../../../../models/2_usecases/features/auth/delete_user_account_usecase.dart';
 
 // Import state management
@@ -78,6 +79,10 @@ class AuthDependencies {
 
     container.registerLazySingleton<CheckEmailRegistrationUseCase>(
       () => CheckEmailRegistrationUseCase(container<IAuthRepository>()),
+    );
+
+    container.registerLazySingleton<CheckPhoneRegistrationUseCase>(
+      () => CheckPhoneRegistrationUseCase(container<IAuthRepository>()),
     );
 
     container.registerLazySingleton<DeleteUserAccountUseCase>(

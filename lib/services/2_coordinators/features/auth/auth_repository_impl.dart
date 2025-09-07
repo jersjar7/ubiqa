@@ -353,6 +353,29 @@ class AuthRepositoryImpl implements IAuthRepository {
   }
 
   @override
+  Future<ServiceResult<bool>> isPhoneNumberRegistered({
+    required String phoneNumber,
+  }) async {
+    try {
+      // Delegate to datasource for phone number check
+      final phoneCheckResult = await _authDataSource.isPhoneNumberRegistered(
+        phoneNumber: phoneNumber,
+      );
+
+      return phoneCheckResult;
+    } catch (e) {
+      return ServiceResult.failure(
+        'Phone number check failed',
+        ServiceException(
+          'Unable to verify phone number availability',
+          ServiceErrorType.unknown,
+          e,
+        ),
+      );
+    }
+  }
+
+  @override
   Future<ServiceResult<void>> deleteUserAccount({required User user}) async {
     try {
       // Apply pre-deletion business logic

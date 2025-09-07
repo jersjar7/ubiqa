@@ -35,6 +35,7 @@ class FirebaseAuthService {
     required String email,
     required String password,
     String? displayName,
+    String? phoneNumber, // ADDED
     SupportedCountryCode? countryCode,
   }) async {
     try {
@@ -71,6 +72,15 @@ class FirebaseAuthService {
         await credential.user!.reload();
       }
 
+      // Create ContactInfo if phone number provided
+      ContactInfo? contactInfo;
+      if (phoneNumber?.trim().isNotEmpty == true) {
+        contactInfo = ContactInfo.create(
+          whatsappPhoneNumber: phoneNumber!.trim(),
+          preferredContactTimeSlot: ContactHours.anytime,
+        );
+      }
+
       // Create domain User entity using domain factory
       final user = UserDomainService.createFromFirebaseWithValidation(
         firebaseUid: credential.user!.uid,
@@ -78,9 +88,14 @@ class FirebaseAuthService {
         displayName: displayName,
       );
 
+      // Update user with contact info if provided
+      final finalUser = contactInfo != null
+          ? user.copyWith(contactInfo: contactInfo)
+          : user;
+
       // Persist user to Firestore with country context
       final persistResult = await _persistUserToFirestore(
-        user,
+        finalUser,
         countryCode: countryCode,
       );
       if (!persistResult.isSuccess) {
@@ -92,7 +107,7 @@ class FirebaseAuthService {
         );
       }
 
-      return ServiceResult.success(user);
+      return ServiceResult.success(finalUser);
     } on firebase_auth.FirebaseAuthException catch (e) {
       return ServiceResult.failure(
         _getAuthErrorMessage(e),
@@ -588,6 +603,36 @@ class FirebaseAuthService {
       return ServiceResult.failure(
         'Email check failed',
         ServiceException(e.toString(), ServiceErrorType.unknown, e),
+      );
+    }
+  }
+
+  /// Check if phone number is already registered in Firestore
+  /// Phone number should be in international format with country code
+  Future<ServiceResult<bool>> isPhoneNumberRegistered({
+    required String phoneNumber,
+  }) async {
+    try {
+      print('DEBUG: Querying Firestore for phone: ${phoneNumber.trim()}');
+      final snapshot = await FirebaseCollections.users
+          .where(
+            'contactInfo.whatsappPhoneNumber',
+            isEqualTo: phoneNumber.trim(),
+          )
+          .limit(1)
+          .get();
+      print('DEBUG: Found ${snapshot.docs.length} documents');
+
+      final isRegistered = snapshot.docs.isNotEmpty;
+      return ServiceResult.success(isRegistered);
+    } catch (e) {
+      return ServiceResult.failure(
+        'Phone number check failed',
+        ServiceException(
+          'Unable to verify phone number availability',
+          ServiceErrorType.unknown,
+          e,
+        ),
       );
     }
   }

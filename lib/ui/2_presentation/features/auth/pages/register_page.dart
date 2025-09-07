@@ -277,6 +277,7 @@ class _RegisterPageState extends State<RegisterPage> {
         password: _passwordController.text,
         fullName: _fullNameController.text.trim(),
         phoneNumber: _fullPhoneNumber.isEmpty ? null : _fullPhoneNumber,
+        countryCode: _selectedCountry,
       ),
     );
   }

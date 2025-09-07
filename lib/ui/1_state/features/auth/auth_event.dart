@@ -5,6 +5,7 @@ import 'package:equatable/equatable.dart';
 // Import domain entities and value objects
 import '../../../../models/1_domain/shared/entities/user.dart';
 import '../../../../models/1_domain/shared/value_objects/contact_info.dart';
+import 'package:ubiqa/models/1_domain/shared/value_objects/international_phone_number.dart';
 
 /// Base class for all authentication events
 abstract class AuthEvent extends Equatable {
@@ -36,16 +37,24 @@ class RegisterRequested extends AuthEvent {
   final String password;
   final String? fullName;
   final String? phoneNumber;
+  final SupportedCountryCode? countryCode;
 
   const RegisterRequested({
     required this.email,
     required this.password,
     this.fullName,
     this.phoneNumber,
+    this.countryCode,
   });
 
   @override
-  List<Object?> get props => [email, password, fullName, phoneNumber];
+  List<Object?> get props => [
+    email,
+    password,
+    fullName,
+    phoneNumber,
+    countryCode,
+  ];
 }
 
 /// Event to sign out current user

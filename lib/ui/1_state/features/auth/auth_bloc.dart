@@ -124,6 +124,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       password: event.password,
       fullName: event.fullName,
       phoneNumber: event.phoneNumber,
+      countryCode: event.countryCode,
     );
 
     if (result.isSuccess) {

@@ -37,6 +37,8 @@ import '../shared/service_result.dart';
 /// - Properties: Reusable data allows multiple listings for same property over time
 /// - Listings: 30-day subscription lifecycle requires independent status tracking
 /// - Payments: Receipt access and customer support requires transaction history
+///
+/// Updated: Now supports international phone numbers (Peru + US) with proper serialization
 class FirestoreService {
   // USER PERSISTENCE
   // WHY: Peru users switch devices frequently and need profile continuity
@@ -514,6 +516,7 @@ class FirestoreService {
 
   // DATA CONVERSION METHODS
   // WHY: Domain entities must be converted to/from Firestore format
+  // Updated: Now properly handles InternationalPhoneNumber serialization
 
   Map<String, dynamic> _userToFirestoreMap(User user) {
     final data = <String, dynamic>{
@@ -526,7 +529,8 @@ class FirestoreService {
 
     if (user.contactInfo != null) {
       data['contactInfo'] = {
-        'whatsappPhoneNumber': user.contactInfo!.whatsappPhoneNumber,
+        'whatsappPhoneNumber': user.contactInfo!.getInternationalPhoneNumber(),
+        'countryCode': user.contactInfo!.getDetectedCountryCode().name,
         'preferredContactTimeSlot':
             user.contactInfo!.preferredContactTimeSlot.name,
         'additionalContactNotes': user.contactInfo!.additionalContactNotes,
@@ -653,7 +657,9 @@ class FirestoreService {
 
     if (listing.contactInfo != null) {
       data['contactInfo'] = {
-        'whatsappPhoneNumber': listing.contactInfo!.whatsappPhoneNumber,
+        'whatsappPhoneNumber': listing.contactInfo!
+            .getInternationalPhoneNumber(),
+        'countryCode': listing.contactInfo!.getDetectedCountryCode().name,
         'preferredContactTimeSlot':
             listing.contactInfo!.preferredContactTimeSlot.name,
         'additionalContactNotes': listing.contactInfo!.additionalContactNotes,

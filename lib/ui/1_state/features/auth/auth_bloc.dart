@@ -1,6 +1,8 @@
 // lib/ui/1_state/features/auth/auth_bloc.dart
 
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:ubiqa/services/4_infrastructure/auth/google_auth_service.dart';
+import 'package:ubiqa/services/5_injection/dependency_container.dart';
 
 // Import auth events and states
 import 'auth_event.dart';
@@ -60,6 +62,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     // Register event handlers
     on<GetCurrentUserRequested>(_onGetCurrentUserRequested);
     on<LoginRequested>(_onLoginRequested);
+    on<GoogleSignInRequested>(_onGoogleSignInRequested);
     on<RegisterRequested>(_onRegisterRequested);
     on<LogoutRequested>(_onLogoutRequested);
     on<UpdateProfileRequested>(_onUpdateProfileRequested);
@@ -109,6 +112,22 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       emit(AuthAuthenticated(result.data!));
     } else {
       emit(AuthError(result.getErrorMessage(), operation: 'login'));
+    }
+  }
+
+  Future<void> _onGoogleSignInRequested(
+    GoogleSignInRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(const AuthLoading());
+
+    final googleAuthService = UbiqaDependencyContainer.get<GoogleAuthService>();
+    final result = await googleAuthService.signInWithGoogle();
+
+    if (result.isSuccess) {
+      emit(AuthAuthenticated(result.data!));
+    } else {
+      emit(AuthError(result.getErrorMessage(), operation: 'googleSignIn'));
     }
   }
 

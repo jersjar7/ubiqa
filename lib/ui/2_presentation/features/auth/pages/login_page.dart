@@ -246,8 +246,11 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void _onSocialLoginPressed(BuildContext context, SocialProvider provider) {
-    // TODO: Implement social login when OAuth is added
-    _showComingSoonDialog(provider.name);
+    if (provider == SocialProvider.google) {
+      context.read<AuthBloc>().add(const GoogleSignInRequested());
+    } else {
+      _showComingSoonDialog(provider.name);
+    }
   }
 
   void _onSignUpPressed() {

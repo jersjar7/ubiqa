@@ -1,6 +1,7 @@
 // lib/services/5_injection/features/auth/auth_dependencies.dart
 
 import 'package:get_it/get_it.dart';
+import 'package:ubiqa/services/4_infrastructure/auth/google_auth_service.dart';
 
 // Import infrastructure services
 import '../../../4_infrastructure/firebase/firebase_auth_service.dart';
@@ -43,6 +44,8 @@ class AuthDependencies {
     container.registerLazySingleton<IAuthRepository>(
       () => AuthRepositoryImpl(container<AuthApiDataSource>()),
     );
+
+    container.registerSingleton<GoogleAuthService>(GoogleAuthService());
 
     // Register use cases
     container.registerLazySingleton<LoginUserUseCase>(

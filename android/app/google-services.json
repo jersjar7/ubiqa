@@ -12,7 +12,20 @@
           "package_name": "com.jersondevs.ubiqa"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "533701055644-hvqa1eu4m9p1a3igf1ehps1edk4if89c.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.jersondevs.ubiqa",
+            "certificate_hash": "479bf1d5fe2a7415d8914614b9d29db62212b3e2"
+          }
+        },
+        {
+          "client_id": "533701055644-bqapjvfqlilb9eugfvj8rk9gai0emv43.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyAAY4Sz8aQ2kd9dYiSAhJFmuZLZRMs5fhE"
@@ -20,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "533701055644-bqapjvfqlilb9eugfvj8rk9gai0emv43.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "533701055644-sgqbtt6uirlqqk0a2iqjje6adh8e7vef.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.jersondevs.ubiqa"
+              }
+            }
+          ]
         }
       }
     }

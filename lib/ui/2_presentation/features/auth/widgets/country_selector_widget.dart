@@ -30,7 +30,10 @@ class CompactCountrySelector extends StatelessWidget {
           children: [
             Text(
               _getCountryFlag(selectedCountry),
-              style: const TextStyle(fontSize: 18.0),
+              style: const TextStyle(
+                fontSize: 18.0,
+                decoration: TextDecoration.none,
+              ),
             ),
             const SizedBox(width: 4.0),
             Text(
@@ -156,7 +159,10 @@ class _CountryPickerModalState extends State<CountryPickerModal> {
                           children: [
                             Text(
                               _getCountryFlag(country),
-                              style: const TextStyle(fontSize: 20.0),
+                              style: const TextStyle(
+                                fontSize: 20.0,
+                                decoration: TextDecoration.none,
+                              ),
                             ),
                             const SizedBox(width: 8.0),
                             Text(

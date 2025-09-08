@@ -40,14 +40,21 @@ class LoginUserUseCase {
           validationResult.exception!,
         );
       }
+      print('🔄 [LoginUseCase] Starting login for: $email');
 
       // Execute authentication through repository
       final loginResult = await _authRepository.signInWithEmailAndPassword(
         email: email.trim(),
         password: password,
       );
+      print(
+        '🔄 [LoginUseCase] Repository result success: ${loginResult.isSuccess}',
+      );
 
       if (!loginResult.isSuccess) {
+        print(
+          '❌ [LoginUseCase] Repository login failed: ${loginResult.getErrorMessage()}',
+        );
         return _mapAuthenticationError(loginResult);
       }
 
@@ -55,6 +62,9 @@ class LoginUserUseCase {
       final user = loginResult.data!;
       final processedUser = _applyPostLoginLogic(user);
 
+      print(
+        '✅ [LoginUseCase] Login successful for: ${loginResult.data!.email}',
+      );
       return ServiceResult.success(processedUser);
     } catch (e) {
       return ServiceResult.failure(

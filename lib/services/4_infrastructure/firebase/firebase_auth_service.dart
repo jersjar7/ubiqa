@@ -132,10 +132,12 @@ class FirebaseAuthService {
     required String password,
   }) async {
     try {
+      print('🔄 [FirebaseAuth] Starting email/password sign in for: $email');
       final credential = await _firebaseAuth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
+      print('🔄 [FirebaseAuth] Firebase Auth success, loading profile...');
 
       if (credential.user == null) {
         return ServiceResult.failure(
@@ -190,21 +192,50 @@ class FirebaseAuthService {
   /// Gets currently authenticated user if available
   Future<ServiceResult<User?>> getCurrentUser() async {
     try {
+      print('🔍 [getCurrentUser] Starting getCurrentUser check');
       final firebaseUser = _firebaseAuth.currentUser;
+      print(
+        '🔍 [getCurrentUser] Firebase currentUser: ${firebaseUser?.uid ?? "NULL"}',
+      );
+      print(
+        '🔍 [getCurrentUser] Firebase user email: ${firebaseUser?.email ?? "NULL"}',
+      );
+
       if (firebaseUser == null) {
+        print('❌ [getCurrentUser] No Firebase user found, returning null');
         return ServiceResult.success(null);
       }
 
+      print(
+        '🔍 [getCurrentUser] Calling getUserProfile for UID: ${firebaseUser.uid}',
+      );
       final userResult = await getUserProfile(firebaseUser.uid);
+      print(
+        '🔍 [getCurrentUser] getUserProfile result success: ${userResult.isSuccess}',
+      );
+
       if (!userResult.isSuccess) {
+        print(
+          '❌ [getCurrentUser] getUserProfile failed: ${userResult.getErrorMessage()}',
+        );
+        print('❌ [getCurrentUser] Exception details: ${userResult.exception}');
         return ServiceResult.failure(
           'Failed to load current user profile',
           userResult.exception,
         );
       }
 
+      print(
+        '✅ [getCurrentUser] User loaded successfully: ${userResult.data?.email}',
+      );
+      print('✅ [getCurrentUser] User name: ${userResult.data?.name}');
+      print(
+        '✅ [getCurrentUser] User hasContactInfo: ${userResult.data?.contactInfo != null}',
+      );
       return ServiceResult.success(userResult.data);
     } catch (e) {
+      print('💥 [getCurrentUser] Exception caught: $e');
+      print('💥 [getCurrentUser] Exception type: ${e.runtimeType}');
       return ServiceResult.failure(
         'Failed to get current user',
         ServiceException(e.toString(), ServiceErrorType.unknown, e),
@@ -217,9 +248,18 @@ class FirebaseAuthService {
   /// Retrieves user profile from Firestore by Firebase UID
   Future<ServiceResult<User>> getUserProfile(String firebaseUid) async {
     try {
+      print(
+        '🔍 [getUserProfile] Starting getUserProfile for UID: $firebaseUid',
+      );
+      print('🔍 [getUserProfile] Fetching Firestore document...');
+
       final doc = await FirebaseCollections.users.doc(firebaseUid).get();
+      print('🔍 [getUserProfile] Document exists: ${doc.exists}');
 
       if (!doc.exists) {
+        print(
+          '❌ [getUserProfile] No Firestore document found for UID: $firebaseUid',
+        );
         return ServiceResult.failure(
           'User profile not found',
           ServiceException(
@@ -230,12 +270,34 @@ class FirebaseAuthService {
       }
 
       final userData = doc.data() as Map<String, dynamic>;
+      print(
+        '🔍 [getUserProfile] Document data keys: ${userData.keys.toList()}',
+      );
+      print('🔍 [getUserProfile] Document email: ${userData['email']}');
+      print('🔍 [getUserProfile] Document name: ${userData['name']}');
+      print(
+        '🔍 [getUserProfile] Document contactInfo exists: ${userData['contactInfo'] != null}',
+      );
 
-      // Reconstruct User entity from Firestore data
+      if (userData['contactInfo'] != null) {
+        final contactData = userData['contactInfo'] as Map<String, dynamic>;
+        print(
+          '🔍 [getUserProfile] ContactInfo keys: ${contactData.keys.toList()}',
+        );
+      }
+
+      print('🔍 [getUserProfile] Calling _userFromFirestoreData...');
       final user = _userFromFirestoreData(userData, firebaseUid);
+      print('✅ [getUserProfile] User reconstructed successfully');
+      print('✅ [getUserProfile] User email: ${user.email}');
+      print('✅ [getUserProfile] User name: ${user.name}');
+      print('✅ [getUserProfile] User contactInfo: ${user.contactInfo != null}');
 
       return ServiceResult.success(user);
     } catch (e) {
+      print('💥 [getUserProfile] Exception caught: $e');
+      print('💥 [getUserProfile] Exception type: ${e.runtimeType}');
+      print('💥 [getUserProfile] Stack trace: ${StackTrace.current}');
       return ServiceResult.failure(
         'Failed to retrieve user profile',
         ServiceException(e.toString(), ServiceErrorType.unknown, e),
@@ -743,14 +805,22 @@ class FirebaseAuthService {
     return data;
   }
 
+  DateTime _parseDateTime(dynamic dateValue) {
+    if (dateValue is Timestamp) {
+      return dateValue.toDate();
+    } else if (dateValue is String) {
+      return DateTime.parse(dateValue);
+    }
+    throw Exception('Invalid date format: ${dateValue.runtimeType}');
+  }
+
   /// Reconstructs User entity from Firestore document data
   /// Updated to handle InternationalPhoneNumber objects
   User _userFromFirestoreData(Map<String, dynamic> data, String firebaseUid) {
-    // Extract basic user data
     final email = data['email'] as String;
     final name = data['name'] as String?;
-    final createdAt = (data['createdAt'] as Timestamp).toDate();
-    final updatedAt = (data['updatedAt'] as Timestamp).toDate();
+    final createdAt = _parseDateTime(data['createdAt']);
+    final updatedAt = _parseDateTime(data['updatedAt']);
     final isActive = data['isActive'] as bool? ?? true;
 
     // Reconstruct contact info if present
@@ -765,15 +835,18 @@ class FirebaseAuthService {
         orElse: () => ContactHours.anytime,
       );
 
-      // Use the international phone number from storage
-      final phoneNumber = contactData['whatsappPhoneNumber'] as String;
+      // Add null check for phone number
+      final phoneNumber = contactData['whatsappPhoneNumber'] as String?;
 
-      contactInfo = ContactInfo.create(
-        whatsappPhoneNumber: phoneNumber,
-        preferredContactTimeSlot: contactHours,
-        additionalContactNotes:
-            contactData['additionalContactNotes'] as String?,
-      );
+      // Only create ContactInfo if phone number exists
+      if (phoneNumber != null && phoneNumber.isNotEmpty) {
+        contactInfo = ContactInfo.create(
+          whatsappPhoneNumber: phoneNumber,
+          preferredContactTimeSlot: contactHours,
+          additionalContactNotes:
+              contactData['additionalContactNotes'] as String?,
+        );
+      }
     }
 
     // Use domain factory to reconstruct User with preserved timestamps

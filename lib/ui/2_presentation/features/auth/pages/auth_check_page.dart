@@ -17,37 +17,39 @@ class _AuthCheckPageState extends State<AuthCheckPage> {
   @override
   void initState() {
     super.initState();
-    print('🔄 AuthCheckPage: initState called');
+    print('🔄 [AuthCheckPage] initState called');
 
     // Trigger current user check when page initializes
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      print('🔄 AuthCheckPage: Triggering GetCurrentUserRequested');
+      print('🔄 [AuthCheckPage] Triggering GetCurrentUserRequested');
       context.read<AuthBloc>().add(const GetCurrentUserRequested());
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    print('🔄 AuthCheckPage: build called');
+    print('🔄 [AuthCheckPage] build called');
 
     return BlocConsumer<AuthBloc, AuthState>(
       listener: (context, state) {
-        print('🔄 AuthCheckPage: State changed to ${state.runtimeType}');
+        print('🔄 [AuthCheckPage] State changed to ${state.runtimeType}');
 
         if (state is AuthAuthenticated) {
-          print('✅ AuthCheckPage: User authenticated, navigating to home');
+          print('✅ [AuthCheckPage] User authenticated, navigating to home');
           Navigator.of(context).pushReplacementNamed('/home');
         } else if (state is AuthUnauthenticated) {
-          print('❌ AuthCheckPage: User not authenticated, navigating to login');
+          print(
+            '❌ [AuthCheckPage] User not authenticated, navigating to login',
+          );
           Navigator.of(context).pushReplacementNamed('/login');
         } else if (state is AuthError) {
-          print('🚨 AuthCheckPage: Auth error - ${state.message}');
+          print('🚨 [AuthCheckPage] Auth error - ${state.message}');
           // For debugging, let's navigate to login on error
           Navigator.of(context).pushReplacementNamed('/login');
         }
       },
       builder: (context, state) {
-        print('🔄 AuthCheckPage: Building with state ${state.runtimeType}');
+        print('🔄 [AuthCheckPage] Building with state ${state.runtimeType}');
 
         // Show different UI based on state for debugging
         if (state is AuthLoading) {

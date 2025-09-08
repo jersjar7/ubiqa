@@ -82,40 +82,40 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     GetCurrentUserRequested event,
     Emitter<AuthState> emit,
   ) async {
-    print('🔄 AuthBloc: GetCurrentUserRequested event received');
+    print('🔄 [AuthBloc] GetCurrentUserRequested event received');
     emit(const AuthLoading());
-    print('🔄 AuthBloc: Emitted AuthLoading state');
+    print('🔄 [AuthBloc] Emitted AuthLoading state');
 
     try {
-      print('🔄 AuthBloc: Calling getCurrentUserUseCase.execute()');
+      print('🔄 [AuthBloc] Calling getCurrentUserUseCase.execute()');
       final result = await _getCurrentUserUseCase.execute();
       print(
-        '🔄 AuthBloc: getCurrentUserUseCase completed - isSuccess: ${result.isSuccess}',
+        '🔄 [AuthBloc] getCurrentUserUseCase completed - isSuccess: ${result.isSuccess}',
       );
 
       if (result.isSuccess) {
         final user = result.data;
         print(
-          '🔄 AuthBloc: User data received - user is null: ${user == null}',
+          '🔄 [AuthBloc] User data received - user is null: ${user == null}',
         );
 
         if (user != null) {
-          print('✅ AuthBloc: User found, emitting AuthAuthenticated');
-          print('✅ AuthBloc: User email: ${user.email}');
+          print('✅ [AuthBloc] User found, emitting AuthAuthenticated');
+          print('✅ [AuthBloc] User email: ${user.email}');
           emit(AuthAuthenticated(user));
         } else {
-          print('❌ AuthBloc: No user found, emitting AuthUnauthenticated');
+          print('❌ [AuthBloc] No user found, emitting AuthUnauthenticated');
           emit(const AuthUnauthenticated());
         }
       } else {
         print(
-          '🚨 AuthBloc: getCurrentUser failed - ${result.getErrorMessage()}',
+          '🚨 [AuthBloc] getCurrentUser failed - ${result.getErrorMessage()}',
         );
         emit(AuthError(result.getErrorMessage(), operation: 'getCurrentUser'));
       }
     } catch (e, stackTrace) {
-      print('🚨 AuthBloc: Exception in _onGetCurrentUserRequested: $e');
-      print('🚨 AuthBloc: Stack trace: $stackTrace');
+      print('🚨 [AuthBloc] Exception in _onGetCurrentUserRequested: $e');
+      print('🚨 [AuthBloc] Stack trace: $stackTrace');
       emit(
         AuthError(
           'Failed to check authentication: $e',
@@ -130,16 +130,22 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     LoginRequested event,
     Emitter<AuthState> emit,
   ) async {
+    print('🔄 [AuthBloc] Login requested for: ${event.email}');
     emit(const AuthLoading());
 
     final result = await _loginUserUseCase.execute(
       email: event.email,
       password: event.password,
     );
+    print('🔄 [AuthBloc] Login result success: ${result.isSuccess}');
 
     if (result.isSuccess) {
+      print(
+        '✅ [AuthBloc] Emitting AuthAuthenticated for: ${result.data!.email}',
+      );
       emit(AuthAuthenticated(result.data!));
     } else {
+      print('❌ [AuthBloc] Login failed: ${result.getErrorMessage()}');
       emit(AuthError(result.getErrorMessage(), operation: 'login'));
     }
   }

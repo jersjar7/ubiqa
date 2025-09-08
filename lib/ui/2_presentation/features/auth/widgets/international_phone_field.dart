@@ -80,7 +80,16 @@ class _InternationalPhoneFieldState extends State<InternationalPhoneField> {
   }
 
   void _onPhoneNumberChanged(String value) {
-    final fullNumber = _selectedCountry.dialingCode + value.replaceAll(' ', '');
+    print('🔍 [PhoneField] Raw input: "$value"');
+    print('🔍 [PhoneField] Selected country: ${_selectedCountry.dialingCode}');
+    final cleanValue = value
+        .replaceAll(' ', '')
+        .replaceAll('(', '')
+        .replaceAll(')', '')
+        .replaceAll('-', '');
+    print('🔍 [PhoneField] Cleaned input: "$cleanValue"');
+    final fullNumber = _selectedCountry.dialingCode + cleanValue;
+    print('🔍 [PhoneField] Full number sent: "$fullNumber"');
     widget.onPhoneChanged?.call(fullNumber);
   }
 

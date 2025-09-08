@@ -17,9 +17,6 @@ import '../../../../1_state/features/auth/auth_bloc.dart';
 import '../../../../1_state/features/auth/auth_event.dart';
 import '../../../../1_state/features/auth/auth_state.dart';
 
-// Import dependency injection
-import '../../../../../services/5_injection/dependency_container.dart';
-
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -43,32 +40,29 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => UbiqaDependencyContainer.get<AuthBloc>(),
-      child: CupertinoPageScaffold(
-        backgroundColor: AppColors.background,
-        child: SafeArea(
-          child: BlocListener<AuthBloc, AuthState>(
-            listener: _handleAuthStateChanges,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: Column(
-                children: [
-                  const SizedBox(height: 80.0),
-                  _buildLogo(),
-                  const SizedBox(height: 0.0),
-                  _buildWelcomeText(),
-                  const SizedBox(height: 40.0),
-                  _buildLoginForm(),
-                  const SizedBox(height: 4.0),
-                  _buildForgotPasswordButton(),
-                  const SizedBox(height: 12.0),
-                  _buildSocialLoginSection(),
-                  const SizedBox(height: 12.0),
-                  _buildSignUpPrompt(),
-                  const SizedBox(height: 40.0),
-                ],
-              ),
+    return CupertinoPageScaffold(
+      backgroundColor: AppColors.background,
+      child: SafeArea(
+        child: BlocListener<AuthBloc, AuthState>(
+          listener: _handleAuthStateChanges,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0),
+            child: Column(
+              children: [
+                const SizedBox(height: 80.0),
+                _buildLogo(),
+                const SizedBox(height: 0.0),
+                _buildWelcomeText(),
+                const SizedBox(height: 40.0),
+                _buildLoginForm(),
+                const SizedBox(height: 4.0),
+                _buildForgotPasswordButton(),
+                const SizedBox(height: 12.0),
+                _buildSocialLoginSection(),
+                const SizedBox(height: 12.0),
+                _buildSignUpPrompt(),
+                const SizedBox(height: 40.0),
+              ],
             ),
           ),
         ),

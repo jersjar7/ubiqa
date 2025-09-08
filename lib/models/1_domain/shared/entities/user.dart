@@ -127,6 +127,15 @@ class User extends Equatable {
     return name != null && name!.trim().isNotEmpty && contactInfo != null;
   }
 
+  /// Whether user can create listings (requires phone verification)
+  bool canCreateListing() => contactInfo != null && isVerified();
+
+  /// Whether user can contact others (requires phone number)
+  bool canContactOthers() => contactInfo != null;
+
+  /// Whether user has incomplete profile (Google sign-in users initially)
+  bool hasIncompleteProfile() => contactInfo == null;
+
   /// Gets display name with fallback
   String getDisplayName() {
     if (name?.trim().isNotEmpty == true) {

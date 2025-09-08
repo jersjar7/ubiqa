@@ -11,9 +11,6 @@ import '../pages/forgot_password_page.dart';
 import '../../../../1_state/features/auth/auth_bloc.dart';
 import '../../../../1_state/features/auth/auth_state.dart';
 
-// Import dependency injection
-import '../../../../../services/5_injection/dependency_container.dart';
-
 /// Login Flow Coordinator
 ///
 /// Orchestrates navigation between existing auth pages:
@@ -35,15 +32,12 @@ class _LoginFlowState extends State<LoginFlow> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => UbiqaDependencyContainer.get<AuthBloc>(),
-      child: BlocListener<AuthBloc, AuthState>(
-        listener: _handleAuthStateChanges,
-        child: Navigator(
-          key: _navigatorKey,
-          initialRoute: '/login',
-          onGenerateRoute: _generateRoute,
-        ),
+    return BlocListener<AuthBloc, AuthState>(
+      listener: _handleAuthStateChanges,
+      child: Navigator(
+        key: _navigatorKey,
+        initialRoute: '/login',
+        onGenerateRoute: _generateRoute,
       ),
     );
   }
@@ -98,13 +92,7 @@ class _LoginFlowState extends State<LoginFlow> {
         actions: [
           CupertinoDialogAction(
             child: const Text('OK'),
-            onPressed: () {
-              Navigator.of(context).pop();
-              // Return to login page
-              _navigatorKey.currentState?.popUntil(
-                (route) => route.settings.name == '/login',
-              );
-            },
+            onPressed: () => Navigator.of(context).pop(),
           ),
         ],
       ),

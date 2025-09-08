@@ -12,8 +12,10 @@ class InternationalPhoneField extends StatefulWidget {
   final String? errorText;
   final SupportedCountryCode initialCountry;
   final String? initialPhoneNumber;
+  final FocusNode? focusNode; // Add focus node support
   final ValueChanged<String>? onPhoneChanged;
   final ValueChanged<SupportedCountryCode>? onCountryChanged;
+  final ValueChanged<String>? onSubmitted; // Add onSubmitted support
   final bool enabled;
 
   const InternationalPhoneField({
@@ -22,8 +24,10 @@ class InternationalPhoneField extends StatefulWidget {
     this.errorText,
     this.initialCountry = SupportedCountryCode.peru,
     this.initialPhoneNumber,
+    this.focusNode,
     this.onPhoneChanged,
     this.onCountryChanged,
+    this.onSubmitted,
     this.enabled = true,
   });
 
@@ -60,6 +64,7 @@ class _InternationalPhoneFieldState extends State<InternationalPhoneField> {
       placeholder: _getPlaceholderForCountry(_selectedCountry),
       errorText: widget.errorText,
       controller: _phoneController,
+      focusNode: widget.focusNode, // Pass focus node
       keyboardType: TextInputType.phone,
       textInputAction: TextInputAction.next,
       enabled: widget.enabled,
@@ -67,46 +72,59 @@ class _InternationalPhoneFieldState extends State<InternationalPhoneField> {
       prefix: CompactCountrySelector(
         selectedCountry: _selectedCountry,
         enabled: widget.enabled,
-        onTap: widget.enabled ? _showCountryPicker : null,
+        onTap: widget.enabled ? _showCountrySelector : null,
       ),
       onChanged: _onPhoneNumberChanged,
+      onSubmitted: widget.onSubmitted, // Pass onSubmitted
     );
   }
 
-  void _showCountryPicker() {
-    showCupertinoModalPopup<void>(
+  void _onPhoneNumberChanged(String value) {
+    final fullNumber = _selectedCountry.dialingCode + value.replaceAll(' ', '');
+    widget.onPhoneChanged?.call(fullNumber);
+  }
+
+  void _showCountrySelector() {
+    showCupertinoModalPopup<SupportedCountryCode>(
       context: context,
-      builder: (BuildContext context) => CountryPickerModal(
-        initialCountry: _selectedCountry,
-        onCountrySelected: _onCountryChanged,
+      builder: (context) => CupertinoActionSheet(
+        title: const Text('Seleccionar país'),
+        actions: SupportedCountryCode.values.map((country) {
+          return CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.of(context).pop(country);
+            },
+            child: Row(
+              children: [
+                Text(
+                  _getCountryFlag(country),
+                  style: const TextStyle(fontSize: 20.0),
+                ),
+                const SizedBox(width: 12.0),
+                Text(_getCountryName(country)),
+                const Spacer(),
+                Text(
+                  country.dialingCode,
+                  style: const TextStyle(color: CupertinoColors.systemGrey),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancelar'),
+        ),
       ),
-    );
-  }
-
-  void _onCountryChanged(SupportedCountryCode country) {
-    setState(() {
-      _selectedCountry = country;
+    ).then((selectedCountry) {
+      if (selectedCountry != null && selectedCountry != _selectedCountry) {
+        setState(() {
+          _selectedCountry = selectedCountry;
+        });
+        widget.onCountryChanged?.call(selectedCountry);
+        _onPhoneNumberChanged(_phoneController.text);
+      }
     });
-
-    // Clear phone number when country changes
-    _phoneController.clear();
-
-    widget.onCountryChanged?.call(country);
-    _onPhoneNumberChanged('');
-  }
-
-  void _onPhoneNumberChanged(String localNumber) {
-    final fullPhoneNumber = _buildFullPhoneNumber(localNumber);
-    widget.onPhoneChanged?.call(fullPhoneNumber);
-  }
-
-  String _buildFullPhoneNumber(String localNumber) {
-    if (localNumber.isEmpty) return '';
-
-    final cleanedLocal = localNumber.replaceAll(RegExp(r'[^\d]'), '');
-    if (cleanedLocal.isEmpty) return '';
-
-    return '${_selectedCountry.dialingCode}$cleanedLocal';
   }
 
   String _extractLocalNumber(String fullPhoneNumber) {
@@ -145,60 +163,75 @@ class _InternationalPhoneFieldState extends State<InternationalPhoneField> {
         ];
     }
   }
+
+  String _getCountryFlag(SupportedCountryCode country) {
+    switch (country) {
+      case SupportedCountryCode.peru:
+        return '🇵🇪';
+      case SupportedCountryCode.unitedStates:
+        return '🇺🇸';
+    }
+  }
+
+  String _getCountryName(SupportedCountryCode country) {
+    switch (country) {
+      case SupportedCountryCode.peru:
+        return 'Perú';
+      case SupportedCountryCode.unitedStates:
+        return 'Estados Unidos';
+    }
+  }
 }
 
-/// Format Peru phone numbers as user types (987 654 321)
+/// Peru phone number formatter (XXX XXX XXX)
 class _PeruPhoneFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
     TextEditingValue oldValue,
     TextEditingValue newValue,
   ) {
-    final text = newValue.text.replaceAll(RegExp(r'[^\d]'), '');
-
-    if (text.length <= 3) {
-      return newValue.copyWith(text: text);
-    } else if (text.length <= 6) {
-      return newValue.copyWith(
-        text: '${text.substring(0, 3)} ${text.substring(3)}',
-        selection: TextSelection.collapsed(offset: text.length + 1),
+    final newText = newValue.text;
+    if (newText.length <= 3) {
+      return newValue;
+    } else if (newText.length <= 6) {
+      return TextEditingValue(
+        text: '${newText.substring(0, 3)} ${newText.substring(3)}',
+        selection: TextSelection.collapsed(offset: newText.length + 1),
       );
-    } else if (text.length <= 9) {
-      return newValue.copyWith(
+    } else {
+      return TextEditingValue(
         text:
-            '${text.substring(0, 3)} ${text.substring(3, 6)} ${text.substring(6)}',
-        selection: TextSelection.collapsed(offset: text.length + 2),
+            '${newText.substring(0, 3)} ${newText.substring(3, 6)} ${newText.substring(6)}',
+        selection: TextSelection.collapsed(offset: newText.length + 2),
       );
     }
-
-    return oldValue;
   }
 }
 
-/// Format US phone numbers as user types ((555) 123-4567)
+/// US phone number formatter ((XXX) XXX-XXXX)
 class _USPhoneFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
     TextEditingValue oldValue,
     TextEditingValue newValue,
   ) {
-    final text = newValue.text.replaceAll(RegExp(r'[^\d]'), '');
-
-    if (text.length <= 3) {
-      return newValue.copyWith(text: text);
-    } else if (text.length <= 6) {
-      return newValue.copyWith(
-        text: '(${text.substring(0, 3)}) ${text.substring(3)}',
-        selection: TextSelection.collapsed(offset: text.length + 3),
+    final newText = newValue.text;
+    if (newText.length <= 3) {
+      return TextEditingValue(
+        text: newText.isEmpty ? '' : '($newText',
+        selection: TextSelection.collapsed(offset: newText.length + 1),
       );
-    } else if (text.length <= 10) {
-      return newValue.copyWith(
+    } else if (newText.length <= 6) {
+      return TextEditingValue(
+        text: '(${newText.substring(0, 3)}) ${newText.substring(3)}',
+        selection: TextSelection.collapsed(offset: newText.length + 3),
+      );
+    } else {
+      return TextEditingValue(
         text:
-            '(${text.substring(0, 3)}) ${text.substring(3, 6)}-${text.substring(6)}',
-        selection: TextSelection.collapsed(offset: text.length + 4),
+            '(${newText.substring(0, 3)}) ${newText.substring(3, 6)}-${newText.substring(6)}',
+        selection: TextSelection.collapsed(offset: newText.length + 4),
       );
     }
-
-    return oldValue;
   }
 }

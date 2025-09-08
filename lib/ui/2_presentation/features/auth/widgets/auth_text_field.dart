@@ -15,6 +15,7 @@ class AuthTextField extends StatefulWidget {
   final String? errorText;
   final String? initialValue;
   final TextEditingController? controller;
+  final FocusNode? focusNode; // Allow external focus node
   final TextInputType keyboardType;
   final TextInputAction textInputAction;
   final bool isPassword;
@@ -36,6 +37,7 @@ class AuthTextField extends StatefulWidget {
     this.errorText,
     this.initialValue,
     this.controller,
+    this.focusNode, // Add this parameter
     this.keyboardType = TextInputType.text,
     this.textInputAction = TextInputAction.next,
     this.isPassword = false,
@@ -57,6 +59,7 @@ class AuthTextField extends StatefulWidget {
 
 class _AuthTextFieldState extends State<AuthTextField> {
   late TextEditingController _controller;
+  late FocusNode _focusNode; // Properly managed focus node
   late bool _obscureText;
   bool _hasFocus = false;
 
@@ -64,15 +67,28 @@ class _AuthTextFieldState extends State<AuthTextField> {
   void initState() {
     super.initState();
     _controller = widget.controller ?? TextEditingController();
+    _focusNode = widget.focusNode ?? FocusNode(); // Use provided or create new
     _obscureText = widget.isPassword;
 
     if (widget.initialValue != null) {
       _controller.text = widget.initialValue!;
     }
+
+    // Add focus listener properly
+    _focusNode.addListener(_onFocusChange);
   }
 
   @override
   void dispose() {
+    // Remove listener before disposing
+    _focusNode.removeListener(_onFocusChange);
+
+    // Only dispose if we created the focus node
+    if (widget.focusNode == null) {
+      _focusNode.dispose();
+    }
+
+    // Only dispose controller if we created it
     if (widget.controller == null) {
       _controller.dispose();
     }
@@ -104,6 +120,7 @@ class _AuthTextFieldState extends State<AuthTextField> {
           ),
           child: CupertinoTextField(
             controller: _controller,
+            focusNode: _focusNode, // Use the properly managed focus node
             placeholder: widget.placeholder,
             keyboardType: widget.keyboardType,
             textInputAction: widget.textInputAction,
@@ -132,8 +149,7 @@ class _AuthTextFieldState extends State<AuthTextField> {
             onChanged: widget.onChanged,
             onEditingComplete: widget.onEditingComplete,
             onSubmitted: widget.onSubmitted,
-            onTap: () => setState(() => _hasFocus = true),
-            focusNode: FocusNode()..addListener(_onFocusChange),
+            // Remove the onTap handler - focus is managed by FocusNode
           ),
         ),
 
@@ -169,7 +185,7 @@ class _AuthTextFieldState extends State<AuthTextField> {
       suffixWidget = CupertinoButton(
         padding: EdgeInsets.zero,
         onPressed: widget.enabled ? _togglePasswordVisibility : null,
-        minimumSize: Size(0, 0),
+        minimumSize: const Size(0, 0),
         child: Icon(
           _obscureText ? CupertinoIcons.eye : CupertinoIcons.eye_slash,
           size: 20.0,
@@ -209,9 +225,11 @@ class _AuthTextFieldState extends State<AuthTextField> {
     });
   }
 
+  // FIXED: Proper focus change handling
   void _onFocusChange() {
     setState(() {
-      _hasFocus = _controller.selection.isValid;
+      _hasFocus = _focusNode
+          .hasFocus; // Use focusNode.hasFocus instead of controller.selection
     });
   }
 }
@@ -223,6 +241,7 @@ class EmailTextField extends StatelessWidget {
   final String? label;
   final String? errorText;
   final TextEditingController? controller;
+  final FocusNode? focusNode;
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
 
@@ -231,6 +250,7 @@ class EmailTextField extends StatelessWidget {
     this.label,
     this.errorText,
     this.controller,
+    this.focusNode,
     this.onChanged,
     this.onSubmitted,
   });
@@ -242,6 +262,7 @@ class EmailTextField extends StatelessWidget {
       placeholder: 'Ingresa tu correo electronico',
       errorText: errorText,
       controller: controller,
+      focusNode: focusNode,
       keyboardType: TextInputType.emailAddress,
       textInputAction: TextInputAction.next,
       inputFormatters: [
@@ -263,6 +284,7 @@ class PasswordTextField extends StatelessWidget {
   final String? label;
   final String? errorText;
   final TextEditingController? controller;
+  final FocusNode? focusNode;
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
   final bool isConfirmPassword;
@@ -272,6 +294,7 @@ class PasswordTextField extends StatelessWidget {
     this.label,
     this.errorText,
     this.controller,
+    this.focusNode,
     this.onChanged,
     this.onSubmitted,
     this.isConfirmPassword = false,
@@ -287,6 +310,7 @@ class PasswordTextField extends StatelessWidget {
           : 'Ingresa tu contraseña',
       errorText: errorText,
       controller: controller,
+      focusNode: focusNode,
       keyboardType: TextInputType.visiblePassword,
       textInputAction: isConfirmPassword
           ? TextInputAction.done
@@ -303,54 +327,12 @@ class PasswordTextField extends StatelessWidget {
   }
 }
 
-/// Phone number text field for Peru market
-class PhoneTextField extends StatelessWidget {
-  final String? label;
-  final String? errorText;
-  final TextEditingController? controller;
-  final ValueChanged<String>? onChanged;
-  final ValueChanged<String>? onSubmitted;
-  final bool enabled;
-
-  const PhoneTextField({
-    super.key,
-    this.label,
-    this.errorText,
-    this.controller,
-    this.onChanged,
-    this.onSubmitted,
-    this.enabled = true,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return AuthTextField(
-      label: label ?? 'Número de teléfono',
-      placeholder: '+51 123 456 789',
-      errorText: errorText,
-      controller: controller,
-      keyboardType: TextInputType.phone,
-      textInputAction: TextInputAction.next,
-      enabled: enabled,
-      inputFormatters: [
-        FilteringTextInputFormatter.allow(RegExp(r'[0-9+\s-]')),
-      ],
-      prefix: Icon(
-        CupertinoIcons.phone,
-        size: 20.0,
-        color: AppColors.textSecondary,
-      ),
-      onChanged: onChanged,
-      onSubmitted: onSubmitted,
-    );
-  }
-}
-
-/// Full name text field
+/// Full name text field with proper configuration
 class FullNameTextField extends StatelessWidget {
   final String? label;
   final String? errorText;
   final TextEditingController? controller;
+  final FocusNode? focusNode;
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
   final bool enabled;
@@ -360,6 +342,7 @@ class FullNameTextField extends StatelessWidget {
     this.label,
     this.errorText,
     this.controller,
+    this.focusNode,
     this.onChanged,
     this.onSubmitted,
     this.enabled = true,
@@ -372,6 +355,7 @@ class FullNameTextField extends StatelessWidget {
       placeholder: 'Ingresa tu nombre completo',
       errorText: errorText,
       controller: controller,
+      focusNode: focusNode,
       keyboardType: TextInputType.name,
       textInputAction: TextInputAction.next,
       enabled: enabled,

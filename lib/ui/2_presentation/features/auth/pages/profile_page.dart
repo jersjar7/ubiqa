@@ -21,9 +21,6 @@ import '../../../../1_state/features/auth/auth_state.dart';
 import '../../../../../models/1_domain/shared/entities/user.dart';
 import '../../../../../models/1_domain/shared/value_objects/contact_info.dart';
 
-// Import dependency injection
-import '../../../../../services/5_injection/dependency_container.dart';
-
 class ProfilePage extends StatefulWidget {
   final User user;
 
@@ -76,50 +73,47 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => UbiqaDependencyContainer.get<AuthBloc>(),
-      child: CupertinoPageScaffold(
+    return CupertinoPageScaffold(
+      backgroundColor: AppColors.background,
+      navigationBar: CupertinoNavigationBar(
         backgroundColor: AppColors.background,
-        navigationBar: CupertinoNavigationBar(
-          backgroundColor: AppColors.background,
-          border: null,
-          middle: Text('Mi Perfil', style: AppTextStyles.headline),
-          leading: CupertinoButton(
-            padding: EdgeInsets.zero,
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Icon(CupertinoIcons.back),
-          ),
-          trailing: _isEditing
-              ? null
-              : CupertinoButton(
-                  padding: EdgeInsets.zero,
-                  onPressed: () => setState(() => _isEditing = true),
-                  child: Text(
-                    'Editar',
-                    style: AppTextStyles.callout.copyWith(
-                      color: AppColors.primary,
-                    ),
+        border: null,
+        middle: Text('Mi Perfil', style: AppTextStyles.headline),
+        leading: CupertinoButton(
+          padding: EdgeInsets.zero,
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Icon(CupertinoIcons.back),
+        ),
+        trailing: _isEditing
+            ? null
+            : CupertinoButton(
+                padding: EdgeInsets.zero,
+                onPressed: () => setState(() => _isEditing = true),
+                child: Text(
+                  'Editar',
+                  style: AppTextStyles.callout.copyWith(
+                    color: AppColors.primary,
                   ),
                 ),
-        ),
-        child: SafeArea(
-          child: BlocListener<AuthBloc, AuthState>(
-            listener: _handleAuthStateChanges,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                children: [
-                  _buildProfileHeader(),
-                  const SizedBox(height: 32.0),
-                  _buildPersonalInfo(),
-                  const SizedBox(height: 24.0),
-                  _buildContactPreferences(),
-                  const SizedBox(height: 24.0),
-                  _buildSecuritySection(),
-                  const SizedBox(height: 32.0),
-                  _buildDangerZone(),
-                ],
               ),
+      ),
+      child: SafeArea(
+        child: BlocListener<AuthBloc, AuthState>(
+          listener: _handleAuthStateChanges,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              children: [
+                _buildProfileHeader(),
+                const SizedBox(height: 32.0),
+                _buildPersonalInfo(),
+                const SizedBox(height: 24.0),
+                _buildContactPreferences(),
+                const SizedBox(height: 24.0),
+                _buildSecuritySection(),
+                const SizedBox(height: 32.0),
+                _buildDangerZone(),
+              ],
             ),
           ),
         ),
@@ -223,10 +217,20 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         ),
         const SizedBox(height: 16.0),
-        PhoneTextField(
+        // Phone field using AuthTextField
+        AuthTextField(
+          label: 'Número de teléfono',
+          placeholder: 'Ingresa tu número de teléfono',
           controller: _phoneController,
+          keyboardType: TextInputType.phone,
+          textInputAction: TextInputAction.done,
           errorText: _phoneError,
           enabled: _isEditing,
+          prefix: Icon(
+            CupertinoIcons.phone,
+            size: 20.0,
+            color: AppColors.textSecondary,
+          ),
           onChanged: _onPhoneChanged,
         ),
         if (_isEditing) ...[
@@ -267,24 +271,27 @@ class _ProfilePageState extends State<ProfilePage> {
       children: [
         Text('Horario preferido', style: AppTextStyles.formLabel),
         const SizedBox(height: 8.0),
-        CupertinoPicker(
-          itemExtent: 44.0,
-          scrollController: FixedExtentScrollController(
-            initialItem: ContactHours.values.indexOf(_selectedContactHours),
+        SizedBox(
+          height: 120.0,
+          child: CupertinoPicker(
+            itemExtent: 44.0,
+            scrollController: FixedExtentScrollController(
+              initialItem: ContactHours.values.indexOf(_selectedContactHours),
+            ),
+            onSelectedItemChanged: (index) {
+              setState(() {
+                _selectedContactHours = ContactHours.values[index];
+              });
+            },
+            children: ContactHours.values.map((hours) {
+              return Center(
+                child: Text(
+                  _getContactHoursText(hours),
+                  style: AppTextStyles.body,
+                ),
+              );
+            }).toList(),
           ),
-          onSelectedItemChanged: (index) {
-            setState(() {
-              _selectedContactHours = ContactHours.values[index];
-            });
-          },
-          children: ContactHours.values.map((hours) {
-            return Center(
-              child: Text(
-                _getContactHoursText(hours),
-                style: AppTextStyles.body,
-              ),
-            );
-          }).toList(),
         ),
       ],
     );

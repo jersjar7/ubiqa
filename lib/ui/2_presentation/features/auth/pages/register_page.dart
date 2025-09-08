@@ -21,9 +21,6 @@ import '../../../../1_state/features/auth/auth_bloc.dart';
 import '../../../../1_state/features/auth/auth_event.dart';
 import '../../../../1_state/features/auth/auth_state.dart';
 
-// Import dependency injection
-import '../../../../../services/5_injection/dependency_container.dart';
-
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
 
@@ -32,11 +29,20 @@ class RegisterPage extends StatefulWidget {
 }
 
 class _RegisterPageState extends State<RegisterPage> {
+  // Text Controllers
   final _fullNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
+  // Focus Nodes for proper focus management
+  final _fullNameFocusNode = FocusNode();
+  final _emailFocusNode = FocusNode();
+  final _phoneFocusNode = FocusNode();
+  final _passwordFocusNode = FocusNode();
+  final _confirmPasswordFocusNode = FocusNode();
+
+  // Error states
   String? _fullNameError;
   String? _emailError;
   String? _phoneError;
@@ -49,39 +55,43 @@ class _RegisterPageState extends State<RegisterPage> {
 
   @override
   void dispose() {
+    // Dispose controllers
     _fullNameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+
+    // Dispose focus nodes
+    _fullNameFocusNode.dispose();
+    _emailFocusNode.dispose();
+    _phoneFocusNode.dispose();
+    _passwordFocusNode.dispose();
+    _confirmPasswordFocusNode.dispose();
+
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => UbiqaDependencyContainer.get<AuthBloc>(),
-      child: CupertinoPageScaffold(
-        backgroundColor: AppColors.background,
-        child: SafeArea(
-          child: BlocListener<AuthBloc, AuthState>(
-            listener: _handleAuthStateChanges,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: Column(
-                children: [
-                  const SizedBox(height: 80.0),
-                  _buildLogo(),
-                  const SizedBox(height: 0.0),
-                  _buildWelcomeText(),
-                  const SizedBox(height: 40.0),
-                  _buildRegisterForm(),
-                  const SizedBox(height: 4.0),
-                  _buildSocialRegisterSection(),
-                  const SizedBox(height: 12.0),
-                  _buildLoginPrompt(),
-                  const SizedBox(height: 40.0),
-                ],
-              ),
+    return CupertinoPageScaffold(
+      backgroundColor: AppColors.background,
+      child: SafeArea(
+        child: BlocListener<AuthBloc, AuthState>(
+          listener: _handleAuthStateChanges,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0),
+            child: Column(
+              children: [
+                const SizedBox(height: 80.0),
+                _buildLogo(),
+                const SizedBox(height: 0.0),
+                _buildWelcomeText(),
+                const SizedBox(height: 40.0),
+                _buildRegisterForm(),
+                const SizedBox(height: 4.0),
+                _buildLoginPrompt(),
+                const SizedBox(height: 40.0),
+              ],
             ),
           ),
         ),
@@ -116,17 +126,24 @@ class _RegisterPageState extends State<RegisterPage> {
 
         return Column(
           children: [
+            // Full Name Field with Focus Node
             FullNameTextField(
               controller: _fullNameController,
+              focusNode: _fullNameFocusNode,
               errorText: _fullNameError,
               onChanged: _onFullNameChanged,
+              onSubmitted: (_) => _moveToNextField(_emailFocusNode),
             ),
             const SizedBox(height: 16.0),
+
+            // Email Field with Focus Node
             AuthTextField(
               label: 'Correo electrónico',
               placeholder: 'Ingresa tu correo electrónico',
               controller: _emailController,
+              focusNode: _emailFocusNode,
               keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
               errorText: _emailError,
               prefix: Icon(
                 CupertinoIcons.mail,
@@ -134,77 +151,49 @@ class _RegisterPageState extends State<RegisterPage> {
                 color: AppColors.textSecondary,
               ),
               onChanged: _onEmailChanged,
+              onSubmitted: (_) => _moveToNextField(_phoneFocusNode),
             ),
             const SizedBox(height: 16.0),
+
+            // Phone Field with Focus Node
             InternationalPhoneField(
+              focusNode: _phoneFocusNode,
               errorText: _phoneError,
               initialCountry: _selectedCountry,
               onPhoneChanged: _onPhoneChanged,
               onCountryChanged: _onCountryChanged,
+              onSubmitted: (_) => _moveToNextField(_passwordFocusNode),
             ),
             const SizedBox(height: 16.0),
+
+            // Password Field with Focus Node
             PasswordTextField(
               controller: _passwordController,
+              focusNode: _passwordFocusNode,
               errorText: _passwordError,
               onChanged: _onPasswordChanged,
+              onSubmitted: (_) => _moveToNextField(_confirmPasswordFocusNode),
             ),
             const SizedBox(height: 16.0),
+
+            // Confirm Password Field with Focus Node
             PasswordTextField(
               label: 'Confirmar contraseña',
               controller: _confirmPasswordController,
+              focusNode: _confirmPasswordFocusNode,
               errorText: _confirmPasswordError,
               isConfirmPassword: true,
               onChanged: _onConfirmPasswordChanged,
               onSubmitted: (_) => _onRegisterPressed(context),
             ),
             const SizedBox(height: 24.0),
+
+            // Register Button
             AuthButton(
               text: 'Crear Cuenta',
               isLoading: isLoading,
               width: double.infinity,
               onPressed: () => _onRegisterPressed(context),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildSocialRegisterSection() {
-    return BlocBuilder<AuthBloc, AuthState>(
-      builder: (context, state) {
-        final isLoading = state is AuthLoading;
-
-        return Column(
-          children: [
-            Row(
-              children: [
-                const Expanded(child: Divider(color: AppColors.separator)),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Text(
-                    'o regístrate con',
-                    style: AppTextStyles.caption1.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ),
-                const Expanded(child: Divider(color: AppColors.separator)),
-              ],
-            ),
-            const SizedBox(height: 20.0),
-            SocialAuthButton(
-              provider: SocialProvider.google,
-              isLoading: isLoading,
-              onPressed: () =>
-                  _onSocialRegisterPressed(context, SocialProvider.google),
-            ),
-            const SizedBox(height: 12.0),
-            SocialAuthButton(
-              provider: SocialProvider.apple,
-              isLoading: isLoading,
-              onPressed: () =>
-                  _onSocialRegisterPressed(context, SocialProvider.apple),
             ),
           ],
         );
@@ -223,6 +212,13 @@ class _RegisterPageState extends State<RegisterPage> {
         TextAuthButton(text: 'Iniciar Sesión', onPressed: _onLoginPressed),
       ],
     );
+  }
+
+  // FOCUS MANAGEMENT
+
+  /// Helper method to smoothly transition focus between fields
+  void _moveToNextField(FocusNode nextFocusNode) {
+    FocusScope.of(context).requestFocus(nextFocusNode);
   }
 
   // EVENT HANDLERS
@@ -268,6 +264,9 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   void _onRegisterPressed(BuildContext context) {
+    // Dismiss keyboard when register is pressed
+    FocusScope.of(context).unfocus();
+
     _clearErrors();
     if (!_validateInputs()) return;
 
@@ -280,10 +279,6 @@ class _RegisterPageState extends State<RegisterPage> {
         countryCode: _selectedCountry,
       ),
     );
-  }
-
-  void _onSocialRegisterPressed(BuildContext context, SocialProvider provider) {
-    _showComingSoonDialog(provider.name);
   }
 
   void _onLoginPressed() {
@@ -390,22 +385,6 @@ class _RegisterPageState extends State<RegisterPage> {
       builder: (context) => CupertinoAlertDialog(
         title: const Text('Error de Registro'),
         content: Text(message),
-        actions: [
-          CupertinoDialogAction(
-            child: const Text('OK'),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showComingSoonDialog(String feature) {
-    showCupertinoDialog(
-      context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: const Text('Próximamente'),
-        content: Text('El registro con $feature estará disponible pronto.'),
         actions: [
           CupertinoDialogAction(
             child: const Text('OK'),

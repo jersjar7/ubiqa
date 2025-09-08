@@ -82,19 +82,46 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     GetCurrentUserRequested event,
     Emitter<AuthState> emit,
   ) async {
+    print('🔄 AuthBloc: GetCurrentUserRequested event received');
     emit(const AuthLoading());
+    print('🔄 AuthBloc: Emitted AuthLoading state');
 
-    final result = await _getCurrentUserUseCase.execute();
+    try {
+      print('🔄 AuthBloc: Calling getCurrentUserUseCase.execute()');
+      final result = await _getCurrentUserUseCase.execute();
+      print(
+        '🔄 AuthBloc: getCurrentUserUseCase completed - isSuccess: ${result.isSuccess}',
+      );
 
-    if (result.isSuccess) {
-      final user = result.data;
-      if (user != null) {
-        emit(AuthAuthenticated(user));
+      if (result.isSuccess) {
+        final user = result.data;
+        print(
+          '🔄 AuthBloc: User data received - user is null: ${user == null}',
+        );
+
+        if (user != null) {
+          print('✅ AuthBloc: User found, emitting AuthAuthenticated');
+          print('✅ AuthBloc: User email: ${user.email}');
+          emit(AuthAuthenticated(user));
+        } else {
+          print('❌ AuthBloc: No user found, emitting AuthUnauthenticated');
+          emit(const AuthUnauthenticated());
+        }
       } else {
-        emit(const AuthUnauthenticated());
+        print(
+          '🚨 AuthBloc: getCurrentUser failed - ${result.getErrorMessage()}',
+        );
+        emit(AuthError(result.getErrorMessage(), operation: 'getCurrentUser'));
       }
-    } else {
-      emit(AuthError(result.getErrorMessage(), operation: 'getCurrentUser'));
+    } catch (e, stackTrace) {
+      print('🚨 AuthBloc: Exception in _onGetCurrentUserRequested: $e');
+      print('🚨 AuthBloc: Stack trace: $stackTrace');
+      emit(
+        AuthError(
+          'Failed to check authentication: $e',
+          operation: 'getCurrentUser',
+        ),
+      );
     }
   }
 

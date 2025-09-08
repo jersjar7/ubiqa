@@ -2,6 +2,7 @@
 
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 // Import domain entities and services
 import '../../../models/1_domain/shared/entities/user.dart' as domain;
@@ -16,12 +17,15 @@ import '../shared/service_result.dart';
 class GoogleAuthService {
   final firebase_auth.FirebaseAuth _firebaseAuth;
   final GoogleSignIn _googleSignIn;
+  final FirebaseFirestore _firestore;
 
   GoogleAuthService({
     firebase_auth.FirebaseAuth? firebaseAuth,
     GoogleSignIn? googleSignIn,
+    FirebaseFirestore? firestore,
   }) : _firebaseAuth = firebaseAuth ?? firebase_auth.FirebaseAuth.instance,
-       _googleSignIn = googleSignIn ?? GoogleSignIn();
+       _googleSignIn = googleSignIn ?? GoogleSignIn(),
+       _firestore = firestore ?? FirebaseFirestore.instance;
 
   /// Sign in with Google using v6 pattern
   Future<ServiceResult<domain.User>> signInWithGoogle() async {
@@ -71,6 +75,16 @@ class GoogleAuthService {
         displayName: userCredential.user!.displayName,
       );
 
+      // Check if user exists in Firestore, create if not
+      final persistResult = await _ensureUserInFirestore(user);
+      if (!persistResult.isSuccess) {
+        // User authenticated but profile not saved - this could be non-critical
+        // Log error but don't fail the sign-in
+        print(
+          'Warning: Failed to save user profile: ${persistResult.getErrorMessage()}',
+        );
+      }
+
       return ServiceResult.success(user);
     } on firebase_auth.FirebaseAuthException catch (e) {
       return ServiceResult.failure(
@@ -108,6 +122,39 @@ class GoogleAuthService {
   }
 
   // PRIVATE HELPERS
+
+  /// Ensure user exists in Firestore, create if missing
+  Future<ServiceResult<void>> _ensureUserInFirestore(domain.User user) async {
+    try {
+      final userDoc = _firestore.collection('users').doc(user.id.value);
+
+      // Check if user already exists
+      final docSnapshot = await userDoc.get();
+      if (!docSnapshot.exists) {
+        // Create new user document for Google sign-in users
+        await userDoc.set({
+          'email': user.email,
+          'name': user.name,
+          'createdAt': user.createdAt.toIso8601String(),
+          'updatedAt': user.updatedAt.toIso8601String(),
+          'isActive': user.isActive,
+          'registrationCountryCode': 'peru', // Default for Google users
+          // contactInfo will be null initially - collected later when needed
+        });
+      }
+
+      return ServiceResult.success(null);
+    } catch (e) {
+      return ServiceResult.failure(
+        'Failed to persist user',
+        ServiceException(
+          'Error saving user to Firestore: ${e.toString()}',
+          ServiceErrorType.unknown,
+          e,
+        ),
+      );
+    }
+  }
 
   ServiceException _mapFirebaseAuthException(
     firebase_auth.FirebaseAuthException e,

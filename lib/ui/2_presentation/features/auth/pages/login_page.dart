@@ -248,6 +248,8 @@ class _LoginPageState extends State<LoginPage> {
   void _onSocialLoginPressed(BuildContext context, SocialProvider provider) {
     if (provider == SocialProvider.google) {
       context.read<AuthBloc>().add(const GoogleSignInRequested());
+    } else if (provider == SocialProvider.apple) {
+      context.read<AuthBloc>().add(const AppleSignInRequested());
     } else {
       _showComingSoonDialog(provider.name);
     }

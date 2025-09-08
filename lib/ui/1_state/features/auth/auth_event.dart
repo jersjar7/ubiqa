@@ -38,6 +38,13 @@ class GoogleSignInRequested extends AuthEvent {
   List<Object?> get props => [];
 }
 
+class AppleSignInRequested extends AuthEvent {
+  const AppleSignInRequested();
+
+  @override
+  List<Object?> get props => [];
+}
+
 /// Event to register new user account
 class RegisterRequested extends AuthEvent {
   final String email;

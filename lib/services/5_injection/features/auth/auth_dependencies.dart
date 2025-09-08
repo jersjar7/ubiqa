@@ -1,6 +1,7 @@
 // lib/services/5_injection/features/auth/auth_dependencies.dart
 
 import 'package:get_it/get_it.dart';
+import 'package:ubiqa/services/4_infrastructure/auth/apple_auth_service.dart';
 import 'package:ubiqa/services/4_infrastructure/auth/google_auth_service.dart';
 
 // Import infrastructure services
@@ -45,7 +46,10 @@ class AuthDependencies {
       () => AuthRepositoryImpl(container<AuthApiDataSource>()),
     );
 
+    // Register Google and Apple Sign In
     container.registerSingleton<GoogleAuthService>(GoogleAuthService());
+
+    container.registerSingleton<AppleAuthService>(AppleAuthService());
 
     // Register use cases
     container.registerLazySingleton<LoginUserUseCase>(

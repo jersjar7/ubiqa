@@ -1,6 +1,7 @@
 // lib/ui/1_state/features/auth/auth_bloc.dart
 
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:ubiqa/services/4_infrastructure/auth/apple_auth_service.dart';
 import 'package:ubiqa/services/4_infrastructure/auth/google_auth_service.dart';
 import 'package:ubiqa/services/5_injection/dependency_container.dart';
 
@@ -63,6 +64,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<GetCurrentUserRequested>(_onGetCurrentUserRequested);
     on<LoginRequested>(_onLoginRequested);
     on<GoogleSignInRequested>(_onGoogleSignInRequested);
+    on<AppleSignInRequested>(_onAppleSignInRequested);
     on<RegisterRequested>(_onRegisterRequested);
     on<LogoutRequested>(_onLogoutRequested);
     on<UpdateProfileRequested>(_onUpdateProfileRequested);
@@ -128,6 +130,22 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       emit(AuthAuthenticated(result.data!));
     } else {
       emit(AuthError(result.getErrorMessage(), operation: 'googleSignIn'));
+    }
+  }
+
+  Future<void> _onAppleSignInRequested(
+    AppleSignInRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(const AuthLoading());
+
+    final appleAuthService = UbiqaDependencyContainer.get<AppleAuthService>();
+    final result = await appleAuthService.signInWithApple();
+
+    if (result.isSuccess) {
+      emit(AuthAuthenticated(result.data!));
+    } else {
+      emit(AuthError(result.getErrorMessage(), operation: 'appleSignIn'));
     }
   }
 

@@ -101,9 +101,9 @@ class _RegisterPageState extends State<RegisterPage> {
 
   Widget _buildLogo() {
     return Image.asset(
-      'assets/img/logos/ubiqa-h.webp',
-      width: 280.0,
-      height: 80.0,
+      'assets/img/logos/oqupa-logo-tr-500x500.png',
+      width: 350.0,
+      height: 100.0,
     );
   }
 

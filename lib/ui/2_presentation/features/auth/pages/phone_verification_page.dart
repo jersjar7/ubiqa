@@ -121,9 +121,9 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage> {
 
   Widget _buildLogo() {
     return Image.asset(
-      'assets/img/logos/ubiqa-h.webp',
-      width: 250.0,
-      height: 70.0,
+      'assets/img/logos/oqupa-logo-tr-500x500.png',
+      width: 350.0,
+      height: 100.0,
     );
   }
 

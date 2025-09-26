@@ -49,9 +49,9 @@ class HomePage extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Image.asset(
-                    'assets/img/logos/ubiqa-h.webp',
-                    width: 200.0,
-                    height: 60.0,
+                    'assets/img/logos/oqupa-logo-tr-500x500.png',
+                    width: 350.0,
+                    height: 100.0,
                   ),
                   const SizedBox(height: 40.0),
                   Text(

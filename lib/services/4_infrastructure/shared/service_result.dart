@@ -40,6 +40,9 @@ enum ServiceErrorType {
   /// External service unavailable or rate limited
   serviceUnavailable,
 
+  /// Resource was not found (e.g., missing document, deleted entity)
+  notFound,
+
   /// Unknown or unexpected errors
   unknown,
 }

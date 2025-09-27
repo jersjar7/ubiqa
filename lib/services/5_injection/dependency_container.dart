@@ -2,6 +2,7 @@
 
 import 'package:get_it/get_it.dart';
 import 'package:ubiqa/services/5_injection/features/auth/auth_dependencies.dart';
+import 'package:ubiqa/services/5_injection/features/listings/listing_dependencies.dart';
 
 // Import infrastructure services
 import '../4_infrastructure/firebase/firebase_auth_service.dart';
@@ -30,7 +31,7 @@ class UbiqaDependencyContainer {
 
     // Example (to be implemented):
     await AuthDependencies.register(_container);
-    // await ListingsDependencies.register(_container);
+    await ListingDependencies.register(_container);
     // await PaymentsDependencies.register(_container);
 
     print('✅ Vertical Feature Dependencies Initialized');

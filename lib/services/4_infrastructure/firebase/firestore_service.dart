@@ -1,6 +1,7 @@
-// lib/services/1_infrastructure/firebase/firestore_service.dart
+// lib/services/4_infrastructure/firebase/firestore_service.dart
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ubiqa/services/1_contracts/features/listings/listings_repository.dart';
 
 // Import domain entities - these define WHAT we persist
 import '../../../models/1_domain/shared/entities/user.dart';
@@ -221,6 +222,122 @@ class FirestoreService {
       return ServiceResult.failure(
         'Failed to load active listings',
         ServiceException('Listing query error', ServiceErrorType.unknown, e),
+      );
+    }
+  }
+
+  /// Gets active listings filtered by operation type for map toggle
+  /// WHY: Users toggle between venta/alquiler to see relevant properties
+  Future<ServiceResult<List<ListingWithDetails>>>
+  getActiveListingsByOperationType(
+    OperationType operationType, {
+    int limit = 50,
+  }) async {
+    try {
+      final snapshot = await FirebaseCollections.listings
+          .where('status', isEqualTo: ListingStatus.active.name)
+          .where('operationType', isEqualTo: operationType.name)
+          .orderBy('publishedAt', descending: true)
+          .limit(limit)
+          .get();
+
+      final listingsWithDetails = <ListingWithDetails>[];
+
+      for (final doc in snapshot.docs) {
+        final listing = _listingFromFirestoreMap(
+          doc.data() as Map<String, dynamic>,
+          doc.id,
+        );
+        final propertyId =
+            (doc.data() as Map<String, dynamic>?)?['propertyId'] as String?;
+
+        if (propertyId != null) {
+          final propertyResult = await _getPropertyById(propertyId);
+          if (propertyResult.isSuccess && propertyResult.data != null) {
+            listingsWithDetails.add(
+              ListingWithDetails(
+                listing: listing,
+                property: propertyResult.data!,
+              ),
+            );
+          }
+        }
+      }
+
+      return ServiceResult.success(listingsWithDetails);
+    } catch (e) {
+      return ServiceResult.failure(
+        'Failed to load active listings',
+        ServiceException('Listing query error', ServiceErrorType.unknown, e),
+      );
+    }
+  }
+
+  /// Gets single listing with property details by ID
+  /// WHY: Detail view when user taps price bubble on map
+  Future<ServiceResult<ListingWithDetails?>> getListingWithDetailsById(
+    ListingId listingId,
+  ) async {
+    try {
+      final listingDoc = await FirebaseCollections.listings
+          .doc(listingId.value)
+          .get();
+
+      if (!listingDoc.exists) {
+        return ServiceResult.failure(
+          'Listing not found',
+          ServiceException('Listing does not exist', ServiceErrorType.notFound),
+        );
+      }
+
+      final listingData = listingDoc.data() as Map<String, dynamic>;
+      final listing = _listingFromFirestoreMap(listingData, listingId.value);
+
+      // Only return active listings
+      if (listing.status != ListingStatus.active) {
+        return ServiceResult.failure(
+          'Listing is not active',
+          ServiceException(
+            'Listing is not available',
+            ServiceErrorType.notFound,
+          ),
+        );
+      }
+
+      // Fetch associated property
+      final propertyId = listingData['propertyId'] as String?;
+      if (propertyId == null) {
+        return ServiceResult.failure(
+          'Listing has no associated property',
+          ServiceException(
+            'Property reference missing',
+            ServiceErrorType.unknown,
+          ),
+        );
+      }
+
+      final propertyResult = await _getPropertyById(propertyId);
+      if (!propertyResult.isSuccess || propertyResult.data == null) {
+        return ServiceResult.failure(
+          'Associated property not found',
+          ServiceException(
+            'Property data unavailable',
+            ServiceErrorType.notFound,
+          ),
+        );
+      }
+
+      return ServiceResult.success(
+        ListingWithDetails(listing: listing, property: propertyResult.data!),
+      );
+    } catch (e) {
+      return ServiceResult.failure(
+        'Failed to load listing details',
+        ServiceException(
+          'Listing retrieval error',
+          ServiceErrorType.unknown,
+          e,
+        ),
       );
     }
   }
@@ -799,13 +916,4 @@ class FirestoreService {
       receiptData: data['receiptData'] as String?,
     );
   }
-}
-
-/// Combined result for listing search with property details
-/// WHY: Buyers need both listing info (price, description) and property details (specs, location)
-class ListingWithDetails {
-  final Listing listing;
-  final Property property;
-
-  const ListingWithDetails({required this.listing, required this.property});
 }

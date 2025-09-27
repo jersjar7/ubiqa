@@ -1,4 +1,4 @@
-// lib/services/1_infrastructure/firebase/firebase_storage_service.dart
+// lib/services/4_infrastructure/firebase/firebase_storage_service.dart
 
 import 'dart:io';
 

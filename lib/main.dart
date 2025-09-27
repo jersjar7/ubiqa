@@ -6,7 +6,7 @@ import 'package:ubiqa/ui/1_state/features/auth/auth_bloc.dart';
 import 'package:ubiqa/ui/2_presentation/features/auth/flows/login_flow.dart';
 import 'package:ubiqa/ui/2_presentation/features/auth/flows/registration_flow.dart';
 import 'package:ubiqa/ui/2_presentation/features/auth/pages/auth_check_page.dart';
-import 'package:ubiqa/ui/2_presentation/features/auth/pages/home_page.dart';
+import 'package:ubiqa/ui/2_presentation/features/listings/pages/home_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,12 +30,12 @@ class MyApp extends StatelessWidget {
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         ),
-        initialRoute: '/',
+        initialRoute: '/home',
         routes: {
+          '/home': (context) => const HomePage(),
           '/': (context) => const AuthCheckPage(),
           '/login': (context) => const LoginFlow(),
           '/register': (context) => const RegistrationFlow(),
-          '/home': (context) => const HomePage(),
         },
       ),
     );

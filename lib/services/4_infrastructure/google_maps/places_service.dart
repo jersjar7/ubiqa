@@ -128,7 +128,7 @@ class PlacesService {
           '${GoogleMapsConfig.placesApiUrl}/nearbysearch/json?'
           'location=$latitude,$longitude&'
           'radius=${(radiusKm * 1000).toInt()}&'
-          'key=${GoogleMapsConfig.apiKey}';
+          'key=${GoogleMapsConfig.googleMapsApiKey}';
 
       if (placeType != null) {
         url += '&type=$placeType';

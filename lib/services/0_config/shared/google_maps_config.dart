@@ -5,7 +5,7 @@ import 'secrets.dart';
 /// Google Maps configuration for Ubiqa location services
 class GoogleMapsConfig {
   /// Google Maps API key for all services
-  static const String apiKey = Secrets.googleMapsApiKey;
+  static final String googleMapsApiKey = Secrets.googleMapsApiKey;
 
   /// Base URLs for Google Maps services
   static const String placesApiUrl =
@@ -59,7 +59,7 @@ class GoogleMapsConfig {
         'zoom=$zoom&'
         'size=${width}x$height&'
         'markers=color:red%7C$lat,$lng&'
-        'key=$apiKey';
+        'key=$googleMapsApiKey';
   }
 
   /// Generate Places API search URL
@@ -72,7 +72,7 @@ class GoogleMapsConfig {
     var url =
         '$placesApiUrl/textsearch/json?'
         'query=${Uri.encodeComponent(query)}&'
-        'key=$apiKey';
+        'key=$googleMapsApiKey';
 
     if (lat != null && lng != null) {
       final radiusMeters = (radiusKm * 1000).toInt();
@@ -87,7 +87,7 @@ class GoogleMapsConfig {
     return '$placesApiUrl/details/json?'
         'place_id=$placeId&'
         'fields=name,formatted_address,geometry,address_components&'
-        'key=$apiKey';
+        'key=$googleMapsApiKey';
   }
 
   /// Generate Geocoding API URL
@@ -95,7 +95,7 @@ class GoogleMapsConfig {
     return '$geocodingUrl/json?'
         'address=${Uri.encodeComponent(address)}&'
         'bounds=$piuraMinLat,$piuraMinLng%7C$piuraMaxLat,$piuraMaxLng&'
-        'key=$apiKey';
+        'key=$googleMapsApiKey';
   }
 
   /// Validate API key format

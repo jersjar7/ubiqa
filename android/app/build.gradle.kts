@@ -1,3 +1,12 @@
+import java.util.Properties
+
+// Load .env file
+val dotenvFile = rootProject.file(".env")
+val dotenvProps = Properties()
+if (dotenvFile.exists()) {
+    dotenvFile.inputStream().use { dotenvProps.load(it) }
+}
+
 plugins {
     id("com.android.application")
     // START: FlutterFire Configuration
@@ -31,6 +40,9 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        manifestPlaceholders["mapsApiKey"] =
+            dotenvProps.getProperty("GOOGLE_MAPS_API_KEY_ANDROID") ?: ""
     }
 
     buildTypes {

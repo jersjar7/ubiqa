@@ -92,7 +92,7 @@ class GeocodingService {
           '${GoogleMapsConfig.geocodingUrl}/json?'
           'latlng=$latitude,$longitude&'
           'result_type=street_address|route|subpremise&'
-          'key=${GoogleMapsConfig.apiKey}';
+          'key=${GoogleMapsConfig.googleMapsApiKey}';
 
       final result = await _httpClient.getGoogleMapsApi(url: url);
 

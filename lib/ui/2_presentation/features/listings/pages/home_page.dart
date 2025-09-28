@@ -128,7 +128,7 @@ class _HomePageContentState extends State<_HomePageContent> {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          'No hay propiedades disponibles',
+                          'Pronto, más propiedades disponibles!',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,

@@ -36,10 +36,10 @@ class MyApp extends StatelessWidget {
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         ),
-        initialRoute: '/home',
+        initialRoute: '/',
         routes: {
-          '/home': (context) => const HomePage(),
-          '/': (context) => const AuthCheckPage(),
+          '/': (context) => const HomePage(),
+          '/auth': (context) => const AuthCheckPage(),
           '/login': (context) => const LoginFlow(),
           '/register': (context) => const RegistrationFlow(),
         },

@@ -1,6 +1,5 @@
 // lib/ui/2_presentation/features/listings/pages/home_page.dart
 
-import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -17,6 +16,7 @@ import '../../../../1_state/features/listings/listings_state.dart';
 // Import widgets
 import '../widgets/operation_type_toggle.dart';
 import '../widgets/listing_detail_panel.dart';
+import '../widgets/empty_state_message.dart';
 
 // Import theme
 import '../../../shared/theme/app_colors.dart';
@@ -58,30 +58,14 @@ class _HomePageContentState extends State<_HomePageContent> {
   GoogleMapController? _mapController;
   final Set<Marker> _markers = {};
 
-  // Empty state timer management
-  Timer? _emptyStateTimer;
-  bool _showEmptyStateMessage = true;
+  // Track if we should show empty state message
+  // This key helps Flutter know when to recreate the widget (reset timer)
+  Key _emptyStateKey = UniqueKey();
 
   @override
   void dispose() {
     _mapController?.dispose();
-    _emptyStateTimer?.cancel();
     super.dispose();
-  }
-
-  void _startEmptyStateTimer() {
-    // Cancel any existing timer
-    _emptyStateTimer?.cancel();
-
-    // Reset visibility
-    setState(() => _showEmptyStateMessage = true);
-
-    // Start 5-second timer to hide the message
-    _emptyStateTimer = Timer(const Duration(seconds: 3), () {
-      if (mounted) {
-        setState(() => _showEmptyStateMessage = false);
-      }
-    });
   }
 
   @override
@@ -92,9 +76,10 @@ class _HomePageContentState extends State<_HomePageContent> {
           if (state is ListingsLoaded) {
             _updateMarkers(state);
 
-            // Start timer if listings are empty
+            // Reset empty state message when listings are empty
+            // This recreates the widget with a new key, restarting the timer
             if (state.isEmpty) {
-              _startEmptyStateTimer();
+              setState(() => _emptyStateKey = UniqueKey());
             }
           }
         },
@@ -138,47 +123,15 @@ class _HomePageContentState extends State<_HomePageContent> {
                   ),
                 ),
 
-              // Empty state message - temporary toast notification
+              // Empty state message - auto-dismissible notification
               if (state is ListingsLoaded && state.isEmpty)
                 Positioned(
                   left: 0,
                   right: 0,
                   bottom: MediaQuery.of(context).padding.bottom + 24,
-                  child: IgnorePointer(
-                    ignoring: !_showEmptyStateMessage,
-                    child: AnimatedOpacity(
-                      opacity: _showEmptyStateMessage ? 1.0 : 0.0,
-                      duration: const Duration(milliseconds: 400),
-                      curve: Curves.easeInOut,
-                      child: Center(
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 32),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 14,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.textPrimary.withOpacity(0.9),
-                            borderRadius: BorderRadius.circular(24),
-                            boxShadow: [
-                              BoxShadow(
-                                color: CupertinoColors.black.withOpacity(0.2),
-                                blurRadius: 12,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: Text(
-                            'Pronto, más propiedades disponibles',
-                            textAlign: TextAlign.center,
-                            style: AppTextStyles.callout.copyWith(
-                              color: CupertinoColors.white,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
+                  child: EmptyStateMessage(
+                    key: _emptyStateKey,
+                    message: 'Pronto, más propiedades disponibles',
                   ),
                 ),
 

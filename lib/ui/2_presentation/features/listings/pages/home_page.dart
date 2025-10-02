@@ -1,5 +1,7 @@
 // lib/ui/2_presentation/features/listings/pages/home_page.dart
 
+import 'dart:async';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -15,6 +17,10 @@ import '../../../../1_state/features/listings/listings_state.dart';
 // Import widgets
 import '../widgets/operation_type_toggle.dart';
 import '../widgets/listing_detail_panel.dart';
+
+// Import theme
+import '../../../shared/theme/app_colors.dart';
+import '../../../shared/theme/app_text_styles.dart';
 
 // Import domain
 import '../../../../../models/1_domain/domain_orchestrator.dart';
@@ -52,10 +58,30 @@ class _HomePageContentState extends State<_HomePageContent> {
   GoogleMapController? _mapController;
   final Set<Marker> _markers = {};
 
+  // Empty state timer management
+  Timer? _emptyStateTimer;
+  bool _showEmptyStateMessage = true;
+
   @override
   void dispose() {
     _mapController?.dispose();
+    _emptyStateTimer?.cancel();
     super.dispose();
+  }
+
+  void _startEmptyStateTimer() {
+    // Cancel any existing timer
+    _emptyStateTimer?.cancel();
+
+    // Reset visibility
+    setState(() => _showEmptyStateMessage = true);
+
+    // Start 5-second timer to hide the message
+    _emptyStateTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted) {
+        setState(() => _showEmptyStateMessage = false);
+      }
+    });
   }
 
   @override
@@ -65,6 +91,11 @@ class _HomePageContentState extends State<_HomePageContent> {
         listener: (context, state) {
           if (state is ListingsLoaded) {
             _updateMarkers(state);
+
+            // Start timer if listings are empty
+            if (state.isEmpty) {
+              _startEmptyStateTimer();
+            }
           }
         },
         builder: (context, state) {
@@ -100,50 +131,53 @@ class _HomePageContentState extends State<_HomePageContent> {
 
               // Loading indicator
               if (state is ListingsLoading)
-                const Center(child: CircularProgressIndicator()),
-
-              // Empty state message
-              if (state is ListingsLoaded && state.isEmpty)
                 Center(
-                  child: Container(
-                    margin: const EdgeInsets.all(32),
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.1),
-                          blurRadius: 8,
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.search_off,
-                          size: 48,
-                          color: Colors.grey.shade400,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Pronto, más propiedades disponibles!',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.grey.shade700,
+                  child: CupertinoActivityIndicator(
+                    radius: 16,
+                    color: AppColors.primary,
+                  ),
+                ),
+
+              // Empty state message - temporary toast notification
+              if (state is ListingsLoaded && state.isEmpty)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: MediaQuery.of(context).padding.bottom + 24,
+                  child: IgnorePointer(
+                    ignoring: !_showEmptyStateMessage,
+                    child: AnimatedOpacity(
+                      opacity: _showEmptyStateMessage ? 1.0 : 0.0,
+                      duration: const Duration(milliseconds: 400),
+                      curve: Curves.easeInOut,
+                      child: Center(
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 32),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 14,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.textPrimary.withOpacity(0.9),
+                            borderRadius: BorderRadius.circular(24),
+                            boxShadow: [
+                              BoxShadow(
+                                color: CupertinoColors.black.withOpacity(0.2),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Text(
+                            'Pronto, más propiedades disponibles',
+                            textAlign: TextAlign.center,
+                            style: AppTextStyles.callout.copyWith(
+                              color: CupertinoColors.white,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Intenta cambiar el tipo de operación',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
@@ -155,25 +189,28 @@ class _HomePageContentState extends State<_HomePageContent> {
                     margin: const EdgeInsets.all(32),
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: AppColors.background,
                       borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.separator, width: 1),
                     ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(
-                          Icons.error_outline,
+                        Icon(
+                          CupertinoIcons.exclamationmark_triangle,
                           size: 48,
-                          color: Colors.red,
+                          color: AppColors.error,
                         ),
                         const SizedBox(height: 16),
                         Text(
                           state.message,
                           textAlign: TextAlign.center,
-                          style: const TextStyle(fontSize: 14),
+                          style: AppTextStyles.body.copyWith(
+                            color: AppColors.textPrimary,
+                          ),
                         ),
                         const SizedBox(height: 16),
-                        ElevatedButton(
+                        CupertinoButton.filled(
                           onPressed: () {
                             context.read<ListingsBloc>().add(
                               LoadListingsRequested(

@@ -196,11 +196,11 @@
 			buildConfigurationList = 97C147051CF9000F007C117D /* Build configuration list for PBXNativeTarget "Runner" */;
 			buildPhases = (
 				9866DC776A32D84204F87072 /* [CP] Check Pods Manifest.lock */,
-				3EF20E832E897AE900F131DA /* Inject Environment Variables */,
 				9740EEB61CF901F6004384FC /* Run Script */,
 				97C146EA1CF9000F007C117D /* Sources */,
 				97C146EB1CF9000F007C117D /* Frameworks */,
 				97C146EC1CF9000F007C117D /* Resources */,
+				3EF20E832E897AE900F131DA /* Inject Environment Variables */,
 				9705A1C41CF9048500538489 /* Embed Frameworks */,
 				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
 				DE884D3411081D776DF661CE /* [CP] Embed Pods Frameworks */,
@@ -327,7 +327,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# Read .env file and inject Google Maps key into Info.plist\nENV_FILE=\"${SRCROOT}/../../.env\"\nif [ -f \"$ENV_FILE\" ]; then\n  KEY=$(grep \"GOOGLE_MAPS_API_KEY_IOS\" \"$ENV_FILE\" | cut -d '=' -f2 | tr -d '\\r' | tr -d ' ')\n  /usr/libexec/PlistBuddy -c \"Set :GOOGLE_MAPS_API_KEY $KEY\" \"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\"\nfi\n";
+			shellScript = "#!/bin/sh\n# Read .env file and inject Google Maps key into Info.plist\nENV_FILE=\"$(SRCROOT)/../.env\"\n\necho \"🔍 Looking for .env at: $ENV_FILE\"\n\nif [ -f \"$ENV_FILE\" ]; then\n    echo \"✅ Found .env file\"\n    KEY=$(grep \"GOOGLE_MAPS_API_KEY_IOS\" \"$ENV_FILE\" | cut -d '=' -f2 | tr -d '\\r')\n    echo \"🔑 Extracted key: ${KEY:0:10}...\" # Show first 10 chars only\n    \n    PLIST_PATH=\"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\"\n    echo \"📝 Writing to: $PLIST_PATH\"\n    \n    /usr/libexec/PlistBuddy -c \"Set :GOOGLE_MAPS_API_KEY $KEY\" \"$PLIST_PATH\"\n    \n    if [ $? -eq 0 ]; then\n        echo \"✅ Successfully injected API key\"\n    else\n        echo \"❌ Failed to inject API key\"\n    fi\nelse\n    echo \"❌ .env file not found at: $ENV_FILE\"\nfi\n";
 		};
 		9740EEB61CF901F6004384FC /* Run Script */ = {
 			isa = PBXShellScriptBuildPhase;

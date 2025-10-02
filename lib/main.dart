@@ -38,10 +38,10 @@ class MyApp extends StatelessWidget {
         ),
         initialRoute: '/',
         routes: {
-          '/': (context) => const HomePage(),
-          '/auth': (context) => const AuthCheckPage(),
+          '/': (context) => const AuthCheckPage(),
           '/login': (context) => const LoginFlow(),
           '/register': (context) => const RegistrationFlow(),
+          '/home': (context) => const HomePage(),
         },
       ),
     );

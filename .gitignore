@@ -48,3 +48,4 @@ app.*.map.json
 lib/services/0_config/shared/secrets.dart
 firebase_options.dart
 .env
+ios/Runner/Info.plist

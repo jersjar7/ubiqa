@@ -24,10 +24,14 @@ class ListingsBloc extends Bloc<ListingsEvent, ListingsState> {
   }) : _getActiveListingsUseCase = getActiveListingsUseCase,
        _getListingDetailsUseCase = getListingDetailsUseCase,
        super(const ListingsInitial()) {
+    print('🏠 [ListingsBloc] Constructor called');
+
     // Register event handlers
     on<LoadListingsRequested>(_onLoadListingsRequested);
     on<ListingSelected>(_onListingSelected);
     on<ListingDetailsClosed>(_onListingDetailsClosed);
+
+    print('✅ [ListingsBloc] Event handlers registered');
   }
 
   /// Handles loading listings for specified operation type
@@ -35,24 +39,40 @@ class ListingsBloc extends Bloc<ListingsEvent, ListingsState> {
     LoadListingsRequested event,
     Emitter<ListingsState> emit,
   ) async {
-    emit(ListingsLoading(event.operationType));
+    print('🏠 [ListingsBloc] LoadListingsRequested event received');
+    print('🏠 [ListingsBloc] Operation type: ${event.operationType.name}');
 
+    emit(ListingsLoading(event.operationType));
+    print('🏠 [ListingsBloc] Emitted ListingsLoading state');
+
+    print('🏠 [ListingsBloc] Calling GetActiveListingsUseCase...');
     final result = await _getActiveListingsUseCase.execute(event.operationType);
 
+    print('🏠 [ListingsBloc] Use case completed');
+    print('🏠 [ListingsBloc] Result success: ${result.isSuccess}');
+
     if (result.isSuccess) {
+      print(
+        '✅ [ListingsBloc] Successfully loaded ${result.data!.length} listings',
+      );
       emit(
         ListingsLoaded(
           listings: result.data!,
           operationType: event.operationType,
         ),
       );
+      print('✅ [ListingsBloc] Emitted ListingsLoaded state');
     } else {
+      print('❌ [ListingsBloc] Failed to load listings');
+      print('❌ [ListingsBloc] Error: ${result.getErrorMessage()}');
+      print('❌ [ListingsBloc] Exception type: ${result.exception?.type}');
       emit(
         ListingsError(
           message: result.getErrorMessage(),
           attemptedOperationType: event.operationType,
         ),
       );
+      print('❌ [ListingsBloc] Emitted ListingsError state');
     }
   }
 
@@ -61,6 +81,8 @@ class ListingsBloc extends Bloc<ListingsEvent, ListingsState> {
     ListingSelected event,
     Emitter<ListingsState> emit,
   ) async {
+    print('🏠 [ListingsBloc] ListingSelected event received');
+
     // Preserve current listings in background
     final currentState = state;
     if (currentState is ListingsLoaded) {
@@ -82,32 +104,21 @@ class ListingsBloc extends Bloc<ListingsEvent, ListingsState> {
           ),
         );
       } else {
-        emit(
-          ListingDetailError(
-            message: result.getErrorMessage(),
-            backgroundListings: currentState.listings,
-            backgroundOperationType: currentState.operationType,
-          ),
-        );
+        // Return to loaded state on error
+        emit(currentState);
       }
     }
   }
 
-  /// Handles closing detail view and returning to map
+  /// Handles closing detail view
   void _onListingDetailsClosed(
     ListingDetailsClosed event,
     Emitter<ListingsState> emit,
   ) {
-    // Return to previous listings loaded state
+    print('🏠 [ListingsBloc] ListingDetailsClosed event received');
+
     final currentState = state;
     if (currentState is ListingDetailLoaded) {
-      emit(
-        ListingsLoaded(
-          listings: currentState.backgroundListings,
-          operationType: currentState.backgroundOperationType,
-        ),
-      );
-    } else if (currentState is ListingDetailError) {
       emit(
         ListingsLoaded(
           listings: currentState.backgroundListings,

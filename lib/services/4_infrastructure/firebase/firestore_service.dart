@@ -219,6 +219,7 @@ class FirestoreService {
 
       return ServiceResult.success(listingsWithDetails);
     } catch (e) {
+      print('🚨 Firestore query error: $e');
       return ServiceResult.failure(
         'Failed to load active listings',
         ServiceException('Listing query error', ServiceErrorType.unknown, e),
@@ -233,7 +234,18 @@ class FirestoreService {
     OperationType operationType, {
     int limit = 50,
   }) async {
+    print('🔥 [FirestoreService] getActiveListingsByOperationType called');
+    print('🔥 [FirestoreService] Operation type: ${operationType.name}');
+    print('🔥 [FirestoreService] Limit: $limit');
+
     try {
+      print('🔥 [FirestoreService] Executing Firestore query...');
+      print('🔥 [FirestoreService] Query filters:');
+      print('   - status == ${ListingStatus.active.name}');
+      print('   - operationType == ${operationType.name}');
+      print('   - orderBy publishedAt descending');
+      print('   - limit $limit');
+
       final snapshot = await FirebaseCollections.listings
           .where('status', isEqualTo: ListingStatus.active.name)
           .where('operationType', isEqualTo: operationType.name)
@@ -241,31 +253,54 @@ class FirestoreService {
           .limit(limit)
           .get();
 
+      print('✅ [FirestoreService] Query completed successfully');
+      print('✅ [FirestoreService] Documents returned: ${snapshot.docs.length}');
+
       final listingsWithDetails = <ListingWithDetails>[];
 
       for (final doc in snapshot.docs) {
+        print('🔥 [FirestoreService] Processing document: ${doc.id}');
+
         final listing = _listingFromFirestoreMap(
           doc.data() as Map<String, dynamic>,
           doc.id,
         );
+        print('   ✅ Listing parsed: ${listing.title}');
+
         final propertyId =
             (doc.data() as Map<String, dynamic>?)?['propertyId'] as String?;
 
         if (propertyId != null) {
+          print('   🔥 Fetching property: $propertyId');
           final propertyResult = await _getPropertyById(propertyId);
+
           if (propertyResult.isSuccess && propertyResult.data != null) {
+            print('   ✅ Property loaded successfully');
             listingsWithDetails.add(
               ListingWithDetails(
                 listing: listing,
                 property: propertyResult.data!,
               ),
             );
+          } else {
+            print('   ⚠️ Property not found or failed to load');
           }
+        } else {
+          print('   ⚠️ No propertyId in document');
         }
       }
 
+      print(
+        '✅ [FirestoreService] Successfully loaded ${listingsWithDetails.length} listings with details',
+      );
       return ServiceResult.success(listingsWithDetails);
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('❌ [FirestoreService] Exception occurred!');
+      print('❌ [FirestoreService] Exception type: ${e.runtimeType}');
+      print('❌ [FirestoreService] Exception message: $e');
+      print('❌ [FirestoreService] Stack trace:');
+      print(stackTrace);
+
       return ServiceResult.failure(
         'Failed to load active listings',
         ServiceException('Listing query error', ServiceErrorType.unknown, e),

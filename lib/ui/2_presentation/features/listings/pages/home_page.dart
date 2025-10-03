@@ -33,8 +33,8 @@ class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
   // Piura city center coordinates
-  static const LatLng _piuraCenterLatLng = LatLng(-5.1945, -80.6328);
-  static const double _defaultZoom = 12.0;
+  static const LatLng _piuraCenterLatLng = LatLng(-5.0645, -80.4328);
+  static const double _defaultZoom = 8.0;
 
   @override
   Widget build(BuildContext context) {

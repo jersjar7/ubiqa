@@ -3,7 +3,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_bloc/flutter_bloc.dart'; // ✅ ADD THIS
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../widgets/listing_location.dart';
 
 // Import theme
 import '../../../shared/theme/app_colors.dart';
@@ -521,53 +522,25 @@ class _NewListingFormContentState extends State<_NewListingFormContent> {
           errorText: _districtError,
           onChanged: (value) => setState(() => _districtError = null),
         ),
-        const SizedBox(height: 16.0),
-        Text(
-          'Coordenadas GPS (Opcional)',
-          style: AppTextStyles.formLabel.copyWith(
-            color: AppColors.textSecondary,
-            fontSize: 14.0,
-          ),
-        ),
-        const SizedBox(height: 8.0),
-        Row(
-          children: [
-            Expanded(
-              child: _buildTextField(
-                label: 'Latitud',
-                placeholder: '-5.0645',
-                controller: _latitudeController,
-                focusNode: _latitudeFocusNode,
-                errorText: _latitudeError,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                  signed: true,
-                ),
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'^-?\d+\.?\d{0,8}')),
-                ],
-                onChanged: (value) => setState(() => _latitudeError = null),
-              ),
-            ),
-            const SizedBox(width: 12.0),
-            Expanded(
-              child: _buildTextField(
-                label: 'Longitud',
-                placeholder: '-80.4328',
-                controller: _longitudeController,
-                focusNode: _longitudeFocusNode,
-                errorText: _longitudeError,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                  signed: true,
-                ),
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'^-?\d+\.?\d{0,8}')),
-                ],
-                onChanged: (value) => setState(() => _longitudeError = null),
-              ),
-            ),
-          ],
+        const SizedBox(height: 24.0),
+        
+        // NEW: Interactive map picker instead of text fields
+        MapLocationPicker(
+          initialLatitude: _latitudeController.text.isNotEmpty
+              ? double.tryParse(_latitudeController.text)
+              : null,
+          initialLongitude: _longitudeController.text.isNotEmpty
+              ? double.tryParse(_longitudeController.text)
+              : null,
+          onLocationSelected: (lat, lng) {
+            setState(() {
+              _latitudeController.text = lat.toStringAsFixed(8);
+              _longitudeController.text = lng.toStringAsFixed(8);
+              _latitudeError = null;
+              _longitudeError = null;
+            });
+          },
+          errorText: _latitudeError ?? _longitudeError,
         ),
       ],
     );

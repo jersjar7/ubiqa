@@ -90,30 +90,32 @@ class CreateListingUseCase {
         media: Media.createEmpty(), // Photos will be added in future version
       );
 
-      // STEP 4: Create Listing entity (as draft initially)
+      // STEP 4: Create Listing entity as draft
       final listing = Listing.createDraft(
         id: listingId,
         title: listingTitle,
         description: listingDescription,
         price: listingPrice,
         contactInfo: listingContactInfo,
-        media: Media.createEmpty(), // Photos will be added in future version
+        media: Media.createEmpty(),
       );
 
+      // Activate the listing - sets publishedAt and expiresAt
+      final activatedListing = listing.activate();
 
       // STEP 5: Persist through repository
-      // TODO: This will call the repository method once it's implemented
       final result = await _repository.createListing(
-        listing: listing,
+        listing: activatedListing,
         property: property,
       );
-      
+
+
       if (!result.isSuccess) {
         return ServiceResult.failure(
           'Failed to save listing',
           result.exception!,
         );
-      }
+        }
 
       // TEMPORARY: Return success for now
       return ServiceResult.success(listing);

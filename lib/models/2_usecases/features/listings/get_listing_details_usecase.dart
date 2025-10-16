@@ -21,6 +21,29 @@ class GetListingDetailsUseCase {
   /// Execute: Get complete listing and property details by ID
   /// Returns error if listing doesn't exist or is not active
   Future<ServiceResult<ListingWithDetails>> execute(ListingId listingId) async {
-    return await _repository.fetchListingDetailsById(listingId);
+    // Call repository (which returns nullable ListingWithDetails?)
+    final result = await _repository.fetchListingDetailsById(listingId);
+
+    // Handle the result
+    if (result.isSuccess) {
+      // Check if data is null (listing not found)
+      if (result.data == null) {
+        return ServiceResult.failure(
+          'Listing not found or no longer available',
+          ServiceException(
+            'Listing does not exist or is not active',
+            ServiceErrorType.notFound,
+          ),
+        );
+      }
+      // Data exists, return it (non-nullable now)
+      return ServiceResult.success(result.data!);
+    }
+
+    // Repository returned an error, pass it through
+    return ServiceResult.failure(
+      result.errorMessage!,
+      result.exception!,
+    );
   }
 }

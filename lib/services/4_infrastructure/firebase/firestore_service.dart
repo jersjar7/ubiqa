@@ -179,6 +179,69 @@ class FirestoreService {
     }
   }
 
+  /// Creates new listing with associated property atomically
+  /// WHY: Users creating listings need both entities persisted together
+  /// to prevent orphaned data
+  Future<ServiceResult<Listing>> createListingWithProperty({
+    required Listing listing,
+    required Property property,
+  }) async {
+    print('🔥 [FirestoreService] createListingWithProperty called');
+    print('🔥 [FirestoreService] Listing ID: ${listing.id.value}');
+    print('🔥 [FirestoreService] Property ID: ${property.id.value}');
+
+    try {
+      // TODO: Get current user ID from auth context
+      // For now, we'll use a placeholder
+      // In production, this should come from Firebase Auth currentUser
+      final userId = UserId.fromFirebaseUid('temp_user_${DateTime.now().millisecondsSinceEpoch}');
+      
+      print('🔥 [FirestoreService] Using user ID: ${userId.value}');
+      
+      // STEP 1: Save property first
+      print('🔥 [FirestoreService] Saving property...');
+      final propertyData = _propertyToFirestoreMap(property);
+      propertyData['ownerId'] = userId.value;
+      propertyData['createdAt'] = FieldValue.serverTimestamp();
+
+      await FirebaseCollections.properties
+          .doc(property.id.value)
+          .set(propertyData, SetOptions(merge: true));
+
+      print('✅ [FirestoreService] Property saved successfully');
+
+      // STEP 2: Save listing with property link
+      print('🔥 [FirestoreService] Saving listing...');
+      final listingData = _listingToFirestoreMap(listing);
+      listingData['ownerId'] = userId.value;
+      listingData['propertyId'] = property.id.value;
+      listingData['operationType'] = property.operationType.name;
+
+      await FirebaseCollections.listings
+          .doc(listing.id.value)
+          .set(listingData, SetOptions(merge: true));
+
+      print('✅ [FirestoreService] Listing saved successfully');
+      print('✅ [FirestoreService] Listing created with ID: ${listing.id.value}');
+
+      return ServiceResult.success(listing);
+    } catch (e, stackTrace) {
+      print('❌ [FirestoreService] Failed to create listing');
+      print('❌ [FirestoreService] Error: $e');
+      print('❌ [FirestoreService] Stack trace:');
+      print(stackTrace);
+
+      return ServiceResult.failure(
+        'Failed to create listing',
+        ServiceException(
+          'Listing creation error',
+          ServiceErrorType.unknown,
+          e,
+        ),
+      );
+    }
+  }
+
   /// Gets active listings within Piura geographic bounds for property search
   /// WHY: Buyers need to find available properties in their target area
   Future<ServiceResult<List<ListingWithDetails>>> getActiveListingsInPiura({

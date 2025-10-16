@@ -11,6 +11,7 @@ import '../../../4_infrastructure/shared/service_result.dart';
 
 // Import domain
 import '../../../../models/1_domain/shared/entities/listing.dart';
+import '../../../../models/1_domain/shared/entities/property.dart';
 import '../../../../models/1_domain/domain_orchestrator.dart';
 
 /// Listings Repository Implementation
@@ -37,7 +38,7 @@ class ListingsRepositoryImpl implements IListingsRepository {
 
   @override
   Future<ServiceResult<List<ListingWithDetails>>>
-  fetchActiveListingsByOperationType(OperationType operationType) async {
+      fetchActiveListingsByOperationType(OperationType operationType) async {
     // Check cache validity
     if (_isCacheValid(operationType)) {
       return ServiceResult.success(_cache[operationType]!);
@@ -75,6 +76,30 @@ class ListingsRepositoryImpl implements IListingsRepository {
         'Listing not found or no longer available',
         ServiceException('Listing not found', ServiceErrorType.notFound),
       );
+    }
+
+    return ServiceResult.failure(result.errorMessage!, result.exception);
+  }
+
+  // ✅ NEW METHOD: Create listing with property
+  @override
+  Future<ServiceResult<Listing>> createListing({
+    required Listing listing,
+    required Property property,
+  }) async {
+    // Invalidate cache since we're adding a new listing
+    // WHY: Users expect to see their new listing on the map immediately
+    invalidateCacheForOperationType(property.operationType);
+
+    // Delegate to data source
+    final result = await _dataSource.createListing(
+      listing: listing,
+      property: property,
+    );
+
+    if (result.isSuccess) {
+      // Cache invalidation already done above
+      return ServiceResult.success(result.data!);
     }
 
     return ServiceResult.failure(result.errorMessage!, result.exception);

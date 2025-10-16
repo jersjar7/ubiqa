@@ -100,19 +100,20 @@ class CreateListingUseCase {
         media: Media.createEmpty(), // Photos will be added in future version
       );
 
+
       // STEP 5: Persist through repository
       // TODO: This will call the repository method once it's implemented
-      // final result = await _repository.createListing(
-      //   listing: listing,
-      //   property: property,
-      // );
-      //
-      // if (!result.isSuccess) {
-      //   return ServiceResult.failure(
-      //     'Failed to save listing',
-      //     result.exception!,
-      //   );
-      // }
+      final result = await _repository.createListing(
+        listing: listing,
+        property: property,
+      );
+      
+      if (!result.isSuccess) {
+        return ServiceResult.failure(
+          'Failed to save listing',
+          result.exception!,
+        );
+      }
 
       // TEMPORARY: Return success for now
       return ServiceResult.success(listing);

@@ -3,8 +3,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:ubiqa/models/1_domain/shared/entities/property.dart';
-import 'package:ubiqa/models/1_domain/shared/value_objects/price.dart';
+import 'package:flutter_bloc/flutter_bloc.dart'; // ✅ ADD THIS
 
 // Import theme
 import '../../../shared/theme/app_colors.dart';
@@ -12,6 +11,18 @@ import '../../../shared/theme/app_text_styles.dart';
 
 // Import domain
 import '../../../../../models/1_domain/domain_orchestrator.dart';
+import '../../../../../models/1_domain/shared/value_objects/price.dart';
+import '../../../../../models/1_domain/shared/value_objects/property_specs.dart';
+import '../../../../../models/1_domain/shared/value_objects/location.dart';
+import '../../../../../models/1_domain/shared/entities/property.dart';
+
+// Import BLoC
+import '../../../../1_state/features/listings/listings_bloc.dart';
+import '../../../../1_state/features/listings/listings_event.dart';
+import '../../../../1_state/features/listings/listings_state.dart';
+
+// Import DI
+import '../../../../../services/5_injection/dependency_container.dart';
 
 /// New Listing Form Page
 ///
@@ -22,14 +33,26 @@ import '../../../../../models/1_domain/domain_orchestrator.dart';
 /// - Contact preferences
 ///
 /// Form validates all inputs before submission.
-class NewListingFormPage extends StatefulWidget {
+class NewListingFormPage extends StatelessWidget {
   const NewListingFormPage({super.key});
 
   @override
-  State<NewListingFormPage> createState() => _NewListingFormPageState();
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (_) => UbiqaDependencyContainer.get<ListingsBloc>(),
+      child: const _NewListingFormContent(),
+    );
+  }
 }
 
-class _NewListingFormPageState extends State<NewListingFormPage> {
+class _NewListingFormContent extends StatefulWidget {
+  const _NewListingFormContent();
+
+  @override
+  State<_NewListingFormContent> createState() => _NewListingFormContentState();
+}
+
+class _NewListingFormContentState extends State<_NewListingFormContent> {
   // Form Controllers
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
@@ -73,10 +96,7 @@ class _NewListingFormPageState extends State<NewListingFormPage> {
   PropertyType _selectedPropertyType = PropertyType.casa;
   OperationType _selectedOperationType = OperationType.venta;
   Currency _selectedCurrency = Currency.pen;
-  List<String> _selectedAmenities = [];
-
-  // Form State
-  bool _isSubmitting = false;
+  final List<String> _selectedAmenities = [];
 
   @override
   void dispose() {
@@ -124,49 +144,63 @@ class _NewListingFormPageState extends State<NewListingFormPage> {
         middle: Text('Publicar Propiedad', style: AppTextStyles.headline),
       ),
       child: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 24.0),
-              _buildSectionHeader('Tipo de Propiedad'),
-              const SizedBox(height: 12.0),
-              _buildPropertyTypeSelector(),
-              const SizedBox(height: 24.0),
-              _buildSectionHeader('Tipo de Operación'),
-              const SizedBox(height: 12.0),
-              _buildOperationTypeSelector(),
-              const SizedBox(height: 24.0),
-              _buildSectionHeader('Información Básica'),
-              const SizedBox(height: 12.0),
-              _buildTitleField(),
-              const SizedBox(height: 16.0),
-              _buildDescriptionField(),
-              const SizedBox(height: 24.0),
-              _buildSectionHeader('Precio'),
-              const SizedBox(height: 12.0),
-              _buildPriceFields(),
-              const SizedBox(height: 24.0),
-              _buildSectionHeader('Especificaciones'),
-              const SizedBox(height: 12.0),
-              _buildSpecificationsFields(),
-              const SizedBox(height: 24.0),
-              _buildSectionHeader('Ubicación'),
-              const SizedBox(height: 12.0),
-              _buildLocationFields(),
-              const SizedBox(height: 24.0),
-              _buildSectionHeader('Comodidades (Opcional)'),
-              const SizedBox(height: 12.0),
-              _buildAmenitiesSection(),
-              const SizedBox(height: 32.0),
-              _buildSubmitButton(),
-              const SizedBox(height: 24.0),
-            ],
+        child: BlocListener<ListingsBloc, ListingsState>(
+          listener: _handleBlocStateChanges,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 24.0),
+                _buildSectionHeader('Tipo de Propiedad'),
+                const SizedBox(height: 12.0),
+                _buildPropertyTypeSelector(),
+                const SizedBox(height: 24.0),
+                _buildSectionHeader('Tipo de Operación'),
+                const SizedBox(height: 12.0),
+                _buildOperationTypeSelector(),
+                const SizedBox(height: 24.0),
+                _buildSectionHeader('Información Básica'),
+                const SizedBox(height: 12.0),
+                _buildTitleField(),
+                const SizedBox(height: 16.0),
+                _buildDescriptionField(),
+                const SizedBox(height: 24.0),
+                _buildSectionHeader('Precio'),
+                const SizedBox(height: 12.0),
+                _buildPriceFields(),
+                const SizedBox(height: 24.0),
+                _buildSectionHeader('Especificaciones'),
+                const SizedBox(height: 12.0),
+                _buildSpecificationsFields(),
+                const SizedBox(height: 24.0),
+                _buildSectionHeader('Ubicación'),
+                const SizedBox(height: 12.0),
+                _buildLocationFields(),
+                const SizedBox(height: 24.0),
+                _buildSectionHeader('Comodidades (Opcional)'),
+                const SizedBox(height: 12.0),
+                _buildAmenitiesSection(),
+                const SizedBox(height: 32.0),
+                _buildSubmitButton(),
+                const SizedBox(height: 24.0),
+              ],
+            ),
           ),
         ),
       ),
     );
+  }
+
+  // ✅ NEW: Handle BLoC state changes
+  void _handleBlocStateChanges(BuildContext context, ListingsState state) {
+    if (state is ListingCreated) {
+      // Success! Show dialog and navigate back
+      _showSuccessDialog();
+    } else if (state is ListingCreationError) {
+      // Error! Show error message
+      _showErrorDialog(state.errorMessage);
+    }
   }
 
   // SECTION HEADERS
@@ -385,7 +419,7 @@ class _NewListingFormPageState extends State<NewListingFormPage> {
                   children: Currency.values.map((currency) {
                     return Center(
                       child: Text(
-                        '${currency.currencySymbol} - ${currency.currencySymbol}',
+                        '${currency.currencySymbol} - ${currency.localizedCurrencyName}',
                         style: AppTextStyles.body,
                       ),
                     );
@@ -599,42 +633,92 @@ class _NewListingFormPageState extends State<NewListingFormPage> {
   // SUBMIT BUTTON
 
   Widget _buildSubmitButton() {
-    return SizedBox(
-      width: double.infinity,
-      child: CupertinoButton(
-        color: AppColors.primary,
-        borderRadius: BorderRadius.circular(12.0),
-        onPressed: _isSubmitting ? null : _handleSubmitListing,
-        child: _isSubmitting
-            ? const CupertinoActivityIndicator(color: Colors.white)
-            : const Text(
-                'Publicar Propiedad',
-                style: TextStyle(
-                  fontSize: 17.0,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-      ),
+    return BlocBuilder<ListingsBloc, ListingsState>(
+      builder: (context, state) {
+        final isLoading = state is ListingCreating;
+
+        return SizedBox(
+          width: double.infinity,
+          child: CupertinoButton(
+            color: AppColors.primary,
+            borderRadius: BorderRadius.circular(12.0),
+            onPressed: isLoading ? null : _handleSubmitListing,
+            child: isLoading
+                ? const CupertinoActivityIndicator(color: Colors.white)
+                : const Text(
+                    'Publicar Propiedad',
+                    style: TextStyle(
+                      fontSize: 17.0,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+          ),
+        );
+      },
     );
   }
 
-  // FORM VALIDATION AND SUBMISSION
+  // ✅ UPDATED: FORM VALIDATION AND SUBMISSION
 
   Future<void> _handleSubmitListing() async {
     if (!_validateForm()) {
       return;
     }
 
-    setState(() => _isSubmitting = true);
+    try {
+      // Build Price value object
+      final price = Price.create(
+        monetaryAmountValue: double.parse(_priceController.text),
+        transactionCurrency: _selectedCurrency,
+      );
 
-    // TODO: Implement listing creation logic when BLoC is ready
-    // For now, show success message
-    await Future.delayed(const Duration(seconds: 2));
+      // Build PropertySpecs value object
+      final propertySpecs = PropertySpecs.create(
+        totalAreaInSquareMeters: double.parse(_areaController.text),
+        bedroomCount: _selectedPropertyType.hasRooms
+            ? int.parse(_bedroomsController.text)
+            : null,
+        bathroomCount: _selectedPropertyType.hasRooms
+            ? int.parse(_bathroomsController.text)
+            : null,
+        availableParkingSpaces: _parkingController.text.isNotEmpty
+            ? int.parse(_parkingController.text)
+            : 0,
+        propertyAmenities: _selectedAmenities,
+      );
 
-    if (mounted) {
-      setState(() => _isSubmitting = false);
-      _showSuccessDialog();
+      // Build Location value object
+      final latitude = _latitudeController.text.isNotEmpty
+          ? double.parse(_latitudeController.text)
+          : -5.0645; // Default Piura coordinates
+      final longitude = _longitudeController.text.isNotEmpty
+          ? double.parse(_longitudeController.text)
+          : -80.4328; // Default Piura coordinates
+
+      final location = Location.create(
+        latitudeInDecimalDegrees: latitude,
+        longitudeInDecimalDegrees: longitude,
+        fullStreetAddress: _addressController.text.trim(),
+        administrativeDistrict: _districtController.text.trim(),
+        countryIsoCode: 'PE',
+      );
+
+      // ✅ Dispatch CreateListingRequested event to BLoC
+      context.read<ListingsBloc>().add(
+            CreateListingRequested(
+              listingTitle: _titleController.text.trim(),
+              listingDescription: _descriptionController.text.trim(),
+              listingPrice: price,
+              propertyType: _selectedPropertyType,
+              operationType: _selectedOperationType,
+              propertySpecs: propertySpecs,
+              propertyLocation: location,
+              selectedAmenities: _selectedAmenities,
+            ),
+          );
+    } catch (e) {
+      _showErrorDialog('Error al crear la propiedad: $e');
     }
   }
 
@@ -728,6 +812,22 @@ class _NewListingFormPageState extends State<NewListingFormPage> {
               Navigator.of(context).pop(); // Close dialog
               Navigator.of(context).pop(); // Return to previous screen
             },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showErrorDialog(String message) {
+    showCupertinoDialog(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('Error'),
+        content: Text(message),
+        actions: [
+          CupertinoDialogAction(
+            child: const Text('OK'),
+            onPressed: () => Navigator.of(context).pop(),
           ),
         ],
       ),

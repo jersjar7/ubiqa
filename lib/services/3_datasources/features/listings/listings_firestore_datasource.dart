@@ -6,6 +6,7 @@ import '../../../4_infrastructure/shared/service_result.dart';
 
 // Import horizontal foundation - domain
 import '../../../../models/1_domain/shared/entities/listing.dart';
+import '../../../../models/1_domain/shared/entities/property.dart';
 import '../../../../models/1_domain/domain_orchestrator.dart';
 
 // Import contract types (ListingWithDetails defined here)
@@ -28,7 +29,7 @@ class ListingsFirestoreDataSource {
   /// Fetches all active listings for specified operation type
   /// Delegates to FirestoreService.getActiveListingsByOperationType()
   Future<ServiceResult<List<ListingWithDetails>>>
-  fetchActiveListingsByOperationType(OperationType operationType) async {
+      fetchActiveListingsByOperationType(OperationType operationType) async {
     return await _firestoreService.getActiveListingsByOperationType(
       operationType,
     );
@@ -40,5 +41,18 @@ class ListingsFirestoreDataSource {
     ListingId listingId,
   ) async {
     return await _firestoreService.getListingWithDetailsById(listingId);
+  }
+
+  // ✅ NEW METHOD: Create listing with property
+  /// Creates new listing with associated property
+  /// Delegates to FirestoreService.createListingWithProperty()
+  Future<ServiceResult<Listing>> createListing({
+    required Listing listing,
+    required Property property,
+  }) async {
+    return await _firestoreService.createListingWithProperty(
+      listing: listing,
+      property: property,
+    );
   }
 }

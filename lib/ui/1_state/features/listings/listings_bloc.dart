@@ -5,8 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 // Import use cases
 import '../../../../models/2_usecases/features/listings/get_active_listings_usecase.dart';
 import '../../../../models/2_usecases/features/listings/get_listing_details_usecase.dart';
-// ✅ ADD THIS: Import create listing use case (once it's created)
-// import '../../../../models/2_usecases/features/listings/create_listing_usecase.dart';
+import '../../../../models/2_usecases/features/listings/create_listings_usecase.dart';
 
 // Import state and events
 import 'listings_event.dart';
@@ -19,18 +18,15 @@ import 'listings_state.dart';
 class ListingsBloc extends Bloc<ListingsEvent, ListingsState> {
   final GetActiveListingsUseCase _getActiveListingsUseCase;
   final GetListingDetailsUseCase _getListingDetailsUseCase;
-  // ✅ ADD THIS: Create listing use case dependency (once it's created)
-  // final CreateListingUseCase _createListingUseCase;
+  final CreateListingUseCase _createListingUseCase; // ✅ ADD THIS
 
   ListingsBloc({
     required GetActiveListingsUseCase getActiveListingsUseCase,
     required GetListingDetailsUseCase getListingDetailsUseCase,
-    // ✅ ADD THIS: Add to constructor parameters (once use case is created)
-    // required CreateListingUseCase createListingUseCase,
+    required CreateListingUseCase createListingUseCase, // ✅ ADD THIS
   })  : _getActiveListingsUseCase = getActiveListingsUseCase,
         _getListingDetailsUseCase = getListingDetailsUseCase,
-        // ✅ ADD THIS: Initialize use case (once it's created)
-        // _createListingUseCase = createListingUseCase,
+        _createListingUseCase = createListingUseCase, // ✅ ADD THIS
         super(const ListingsInitial()) {
     print('🏠 [ListingsBloc] Constructor called');
 
@@ -38,8 +34,7 @@ class ListingsBloc extends Bloc<ListingsEvent, ListingsState> {
     on<LoadListingsRequested>(_onLoadListingsRequested);
     on<ListingSelected>(_onListingSelected);
     on<ListingDetailsClosed>(_onListingDetailsClosed);
-    // ✅ ADD THIS: Register create listing handler
-    on<CreateListingRequested>(_onCreateListingRequested);
+    on<CreateListingRequested>(_onCreateListingRequested); // ✅ ALREADY ADDED
 
     print('✅ [ListingsBloc] Event handlers registered');
   }
@@ -138,7 +133,7 @@ class ListingsBloc extends Bloc<ListingsEvent, ListingsState> {
     }
   }
 
-  // ✅ NEW HANDLER: Handles creating new listing
+  /// Handles creating new listing
   Future<void> _onCreateListingRequested(
     CreateListingRequested event,
     Emitter<ListingsState> emit,
@@ -149,32 +144,26 @@ class ListingsBloc extends Bloc<ListingsEvent, ListingsState> {
     emit(const ListingCreating());
     print('🏠 [ListingsBloc] Emitted ListingCreating state');
 
-    // TODO: Call use case once it's created
-    // final result = await _createListingUseCase.execute(
-    //   listingTitle: event.listingTitle,
-    //   listingDescription: event.listingDescription,
-    //   listingPrice: event.listingPrice,
-    //   propertyType: event.propertyType,
-    //   operationType: event.operationType,
-    //   propertySpecs: event.propertySpecs,
-    //   propertyLocation: event.propertyLocation,
-    //   selectedAmenities: event.selectedAmenities,
-    // );
+    // ✅ NOW CALL THE REAL USE CASE (uncomment this)
+    final result = await _createListingUseCase.execute(
+      listingTitle: event.listingTitle,
+      listingDescription: event.listingDescription,
+      listingPrice: event.listingPrice,
+      listingContactInfo: event.listingContactInfo,
+      propertyType: event.propertyType,
+      operationType: event.operationType,
+      propertySpecs: event.propertySpecs,
+      propertyLocation: event.propertyLocation,
+      selectedAmenities: event.selectedAmenities,
+    );
 
-    // TODO: Handle result
-    // if (result.isSuccess) {
-    //   print('✅ [ListingsBloc] Listing created successfully');
-    //   emit(ListingCreated(createdListing: result.data!));
-    // } else {
-    //   print('❌ [ListingsBloc] Failed to create listing');
-    //   emit(ListingCreationError(errorMessage: result.getErrorMessage()));
-    // }
-
-    // TEMPORARY: For now, simulate success
-    await Future.delayed(const Duration(seconds: 1));
-    print('⚠️ [ListingsBloc] TODO: Create listing use case not implemented yet');
-    emit(const ListingCreationError(
-      errorMessage: 'Create listing use case not yet implemented',
-    ));
+    // Handle result
+    if (result.isSuccess) {
+      print('✅ [ListingsBloc] Listing created successfully');
+      emit(ListingCreated(createdListing: result.data!));
+    } else {
+      print('❌ [ListingsBloc] Failed to create listing');
+      emit(ListingCreationError(errorMessage: result.getErrorMessage()));
+    }
   }
 }

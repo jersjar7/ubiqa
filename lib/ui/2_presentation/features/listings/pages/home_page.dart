@@ -17,6 +17,7 @@ import '../../../../1_state/features/listings/listings_state.dart';
 import '../widgets/operation_type_toggle.dart';
 import '../widgets/listing_detail_panel.dart';
 import '../widgets/empty_state_message.dart';
+import '../widgets/new_listing.dart'; // ✅ ADD THIS IMPORT
 
 // Import theme
 import '../../../shared/theme/app_colors.dart';
@@ -108,10 +109,18 @@ class _HomePageContentState extends State<_HomePageContent> {
                     currentType: state.operationType,
                     onToggle: (type) {
                       context.read<ListingsBloc>().add(
-                        LoadListingsRequested(type),
-                      );
+                            LoadListingsRequested(type),
+                          );
                     },
                   ),
+                ),
+
+              // Only show when NOT displaying detail panel
+              if (state is! ListingDetailLoaded)
+                Positioned(
+                  bottom: MediaQuery.of(context).padding.bottom + 24,
+                  right: 16,
+                  child: const NewListingButton(),
                 ),
 
               // Loading indicator
@@ -139,38 +148,49 @@ class _HomePageContentState extends State<_HomePageContent> {
               if (state is ListingsError)
                 Center(
                   child: Container(
-                    margin: const EdgeInsets.all(32),
                     padding: const EdgeInsets.all(24),
+                    margin: const EdgeInsets.symmetric(horizontal: 24),
                     decoration: BoxDecoration(
-                      color: AppColors.background,
+                      color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.separator, width: 1),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          CupertinoIcons.exclamationmark_triangle,
+                        const Icon(
+                          Icons.error_outline,
                           size: 48,
-                          color: AppColors.error,
+                          color: Colors.red,
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          state.message,
+                          'Error al cargar propiedades',
+                          style: AppTextStyles.subheadline,
                           textAlign: TextAlign.center,
-                          style: AppTextStyles.body.copyWith(
-                            color: AppColors.textPrimary,
-                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          state.message,
+                          style: AppTextStyles.body,
+                          textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 16),
-                        CupertinoButton.filled(
+                        CupertinoButton(
+                          color: AppColors.primary,
                           onPressed: () {
                             context.read<ListingsBloc>().add(
-                              LoadListingsRequested(
-                                state.attemptedOperationType ??
-                                    OperationType.venta,
-                              ),
-                            );
+                                  LoadListingsRequested(
+                                    state.attemptedOperationType ??
+                                        OperationType.venta,
+                                  ),
+                                );
                           },
                           child: const Text('Reintentar'),
                         ),
@@ -190,8 +210,8 @@ class _HomePageContentState extends State<_HomePageContent> {
                     listingDetail: state.listingDetail,
                     onClose: () {
                       context.read<ListingsBloc>().add(
-                        const ListingDetailsClosed(),
-                      );
+                            const ListingDetailsClosed(),
+                          );
                     },
                   ),
                 ),
@@ -217,8 +237,8 @@ class _HomePageContentState extends State<_HomePageContent> {
           ),
           onTap: () {
             context.read<ListingsBloc>().add(
-              ListingSelected(listingDetail.listing.id),
-            );
+                  ListingSelected(listingDetail.listing.id),
+                );
           },
           // Note: Custom marker widget rendering requires additional setup
           // For MVP, using default markers with infoWindow

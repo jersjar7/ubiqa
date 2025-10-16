@@ -33,6 +33,7 @@ class ListingWithDetails {
 /// - Show all active listings on map as price bubbles
 /// - Toggle between venta/alquiler
 /// - View listing details when bubble tapped
+/// - Create new listings from user form
 ///
 /// Future enhancements:
 /// - Geographic filtering (bounding box, radius)
@@ -75,36 +76,78 @@ abstract class IListingsRepository {
   /// }
   /// ```
   Future<ServiceResult<List<ListingWithDetails>>>
-  fetchActiveListingsByOperationType(OperationType operationType);
+      fetchActiveListingsByOperationType(OperationType operationType);
 
   /// Fetches complete details for a specific listing by its ID
   ///
   /// Used when user taps a price bubble on the map to view full listing details.
   /// Only returns listing if it exists AND status = ListingStatus.active.
   ///
+  /// V1 Implementation Notes:
+  /// - No caching for detail views (always fresh data)
+  /// - Returns null if listing doesn't exist or is not active
+  ///
   /// Parameters:
-  /// - [listingId]: The unique identifier of the listing to fetch
+  /// - [listingId]: Unique identifier for the listing
   ///
   /// Returns:
-  /// - Success with data: Complete listing and property information
-  /// - Failure with notFound: Listing doesn't exist or is not active
-  /// - Failure with network: Connection error
+  /// - Success with data: Listing found and is active
+  /// - Success with null: Listing doesn't exist or not active
+  /// - Failure: Network error, permission error, or server error
   ///
   /// Example:
   /// ```dart
-  /// final result = await repository.fetchListingDetailsById(
-  ///   ListingId.fromString('listing-123')
+  /// final result = await repository.fetchListingDetailsById(listingId);
+  ///
+  /// if (result.isSuccess && result.data != null) {
+  ///   // Show listing details
+  /// } else if (result.isSuccess && result.data == null) {
+  ///   // Show "Listing not found" message
+  /// } else {
+  ///   // Show error to user
+  /// }
+  /// ```
+  Future<ServiceResult<ListingWithDetails?>> fetchListingDetailsById(
+    ListingId listingId,
+  );
+
+  // ✅ NEW METHOD: Create new listing with property
+
+  /// Creates a new listing with associated property
+  ///
+  /// Used when user submits the new listing form.
+  /// Creates both Listing and Property entities in database.
+  ///
+  /// V1 Implementation Notes:
+  /// - Listing created as draft status initially
+  /// - Both listing and property saved atomically
+  /// - User must be authenticated to create listings
+  /// - Future: Will require payment before activation
+  ///
+  /// Parameters:
+  /// - [listing]: Listing entity to create
+  /// - [property]: Property entity associated with listing
+  ///
+  /// Returns:
+  /// - Success with created Listing: Listing saved successfully
+  /// - Failure: Validation error, permission error, or server error
+  ///
+  /// Example:
+  /// ```dart
+  /// final result = await repository.createListing(
+  ///   listing: listing,
+  ///   property: property,
   /// );
   ///
   /// if (result.isSuccess) {
-  ///   // Show detail view
-  /// } else if (result.exception?.errorType == ServiceErrorType.notFound) {
-  ///   // Show "Listing no longer available"
+  ///   // Navigate to success screen
+  ///   // Show "Listing created successfully" message
   /// } else {
-  ///   // Show generic error
+  ///   // Show error to user
   /// }
   /// ```
-  Future<ServiceResult<ListingWithDetails>> fetchListingDetailsById(
-    ListingId listingId,
-  );
+  Future<ServiceResult<Listing>> createListing({
+    required Listing listing,
+    required Property property,
+  });
 }

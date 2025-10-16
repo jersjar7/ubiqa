@@ -1,9 +1,14 @@
 // lib/ui/1_state/features/listings/listings_event.dart
 
 import 'package:equatable/equatable.dart';
+import 'package:ubiqa/models/1_domain/shared/entities/property.dart';
 
 // Import domain
 import '../../../../models/1_domain/shared/entities/listing.dart';
+import '../../../../models/1_domain/shared/value_objects/price.dart';
+import '../../../../models/1_domain/shared/value_objects/contact_info.dart';
+import '../../../../models/1_domain/shared/value_objects/property_specs.dart';
+import '../../../../models/1_domain/shared/value_objects/location.dart';
 import '../../../../models/1_domain/domain_orchestrator.dart';
 
 /// Base class for all listings events
@@ -40,4 +45,48 @@ class ListingSelected extends ListingsEvent {
 /// Clears detail state
 class ListingDetailsClosed extends ListingsEvent {
   const ListingDetailsClosed();
+}
+
+/// Event: User submitted new listing form
+/// Creates both Property and Listing entities
+class CreateListingRequested extends ListingsEvent {
+  // Listing data
+  final String listingTitle;
+  final String listingDescription;
+  final Price listingPrice;
+  final ContactInfo? listingContactInfo;
+
+  // Property data
+  final PropertyType propertyType;
+  final OperationType operationType;
+  final PropertySpecs propertySpecs;
+  final Location propertyLocation;
+
+  // Optional amenities list
+  final List<String>? selectedAmenities;
+
+  const CreateListingRequested({
+    required this.listingTitle,
+    required this.listingDescription,
+    required this.listingPrice,
+    this.listingContactInfo,
+    required this.propertyType,
+    required this.operationType,
+    required this.propertySpecs,
+    required this.propertyLocation,
+    this.selectedAmenities,
+  });
+
+  @override
+  List<Object?> get props => [
+        listingTitle,
+        listingDescription,
+        listingPrice,
+        listingContactInfo,
+        propertyType,
+        operationType,
+        propertySpecs,
+        propertyLocation,
+        selectedAmenities,
+      ];
 }

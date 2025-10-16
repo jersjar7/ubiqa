@@ -1,6 +1,7 @@
 // lib/ui/1_state/features/listings/listings_state.dart
 
 import 'package:equatable/equatable.dart';
+import 'package:ubiqa/models/1_domain/shared/entities/listing.dart';
 
 // Import contracts
 import '../../../../services/1_contracts/features/listings/listings_repository.dart';
@@ -115,4 +116,40 @@ class ListingDetailError extends ListingsState {
     backgroundListings,
     backgroundOperationType,
   ];
+}
+
+/// State: Creating new listing
+/// Emitted while listing is being saved to repository
+class ListingCreating extends ListingsState {
+  const ListingCreating();
+}
+
+/// State: Listing successfully created
+/// Emitted when listing creation completes successfully
+class ListingCreated extends ListingsState {
+  final Listing createdListing;
+  final String successMessage;
+
+  const ListingCreated({
+    required this.createdListing,
+    this.successMessage = 'Propiedad publicada exitosamente',
+  });
+
+  @override
+  List<Object?> get props => [createdListing, successMessage];
+}
+
+/// State: Error creating listing
+/// Emitted when listing creation fails with error details
+class ListingCreationError extends ListingsState {
+  final String errorMessage;
+  final List<String>? validationErrors;
+
+  const ListingCreationError({
+    required this.errorMessage,
+    this.validationErrors,
+  });
+
+  @override
+  List<Object?> get props => [errorMessage, validationErrors];
 }

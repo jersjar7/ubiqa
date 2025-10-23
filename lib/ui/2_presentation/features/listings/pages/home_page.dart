@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:ubiqa/ui/2_presentation/shared/widgets/profile_drawer.dart';
 
 // Import DI
 import '../../../../../services/5_injection/dependency_container.dart';
@@ -17,7 +18,7 @@ import '../../../../1_state/features/listings/listings_state.dart';
 import '../widgets/operation_type_toggle.dart';
 import '../widgets/listing_detail_panel.dart';
 import '../widgets/empty_state_message.dart';
-import '../widgets/new_listing.dart'; // ✅ ADD THIS IMPORT
+import '../widgets/new_listing.dart';
 
 // Import theme
 import '../../../shared/theme/app_colors.dart';
@@ -25,6 +26,14 @@ import '../../../shared/theme/app_text_styles.dart';
 
 // Import domain
 import '../../../../../models/1_domain/domain_orchestrator.dart';
+
+// Import auth BLoC
+import '../../../../1_state/features/auth/auth_bloc.dart';
+import '../../../../1_state/features/auth/auth_state.dart';
+import '../../../../1_state/features/auth/auth_event.dart';
+
+// Import shared widgets
+import '../../../shared/widgets/profile_button.dart';
 
 /// Home Page - Map View with Listings
 ///
@@ -100,6 +109,23 @@ class _HomePageContentState extends State<_HomePageContent> {
                 mapToolbarEnabled: false,
               ),
 
+              // Profile Button (top-left) - NEW
+              Positioned(
+                top: MediaQuery.of(context).padding.top + 16,
+                left: 16,
+                child: BlocBuilder<AuthBloc, AuthState>(
+                  builder: (context, authState) {
+                    if (authState is AuthAuthenticated) {
+                      return ProfileButton(
+                        profileImageUrl: null, // Will add photo upload later
+                        onTap: () => _showProfileMenu(context, authState.user),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
+                ),
+              ),
+
               // Operation Type Toggle (top-right)
               if (state is ListingsLoaded)
                 Positioned(
@@ -109,8 +135,8 @@ class _HomePageContentState extends State<_HomePageContent> {
                     currentType: state.operationType,
                     onToggle: (type) {
                       context.read<ListingsBloc>().add(
-                            LoadListingsRequested(type),
-                          );
+                        LoadListingsRequested(type),
+                      );
                     },
                   ),
                 ),
@@ -186,11 +212,11 @@ class _HomePageContentState extends State<_HomePageContent> {
                           color: AppColors.primary,
                           onPressed: () {
                             context.read<ListingsBloc>().add(
-                                  LoadListingsRequested(
-                                    state.attemptedOperationType ??
-                                        OperationType.venta,
-                                  ),
-                                );
+                              LoadListingsRequested(
+                                state.attemptedOperationType ??
+                                    OperationType.venta,
+                              ),
+                            );
                           },
                           child: const Text('Reintentar'),
                         ),
@@ -210,8 +236,8 @@ class _HomePageContentState extends State<_HomePageContent> {
                     listingDetail: state.listingDetail,
                     onClose: () {
                       context.read<ListingsBloc>().add(
-                            const ListingDetailsClosed(),
-                          );
+                        const ListingDetailsClosed(),
+                      );
                     },
                   ),
                 ),
@@ -219,6 +245,19 @@ class _HomePageContentState extends State<_HomePageContent> {
           );
         },
       ),
+    );
+  }
+
+  /// Show profile menu with user info and sign out option
+  void _showProfileMenu(BuildContext context, dynamic user) {
+    ProfileDrawer.show(
+      context: context,
+      userName: user.name ?? user.email.split('@')[0],
+      userEmail: user.email,
+      profileImageUrl: null, // Will add photo upload later
+      onSignOut: () {
+        context.read<AuthBloc>().add(const LogoutRequested());
+      },
     );
   }
 
@@ -237,8 +276,8 @@ class _HomePageContentState extends State<_HomePageContent> {
           ),
           onTap: () {
             context.read<ListingsBloc>().add(
-                  ListingSelected(listingDetail.listing.id),
-                );
+              ListingSelected(listingDetail.listing.id),
+            );
           },
           // Note: Custom marker widget rendering requires additional setup
           // For MVP, using default markers with infoWindow

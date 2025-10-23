@@ -14,13 +14,13 @@ import '../../../shared/theme/app_text_styles.dart';
 class MapLocationPicker extends StatefulWidget {
   /// Initial latitude (defaults to Piura city center)
   final double? initialLatitude;
-  
+
   /// Initial longitude (defaults to Piura city center)
   final double? initialLongitude;
-  
+
   /// Callback when location is selected
   final Function(double latitude, double longitude) onLocationSelected;
-  
+
   /// Optional error text to display
   final String? errorText;
 
@@ -39,16 +39,16 @@ class MapLocationPicker extends StatefulWidget {
 class _MapLocationPickerState extends State<MapLocationPicker> {
   GoogleMapController? _mapController;
   LatLng? _selectedLocation;
-  
+
   // Default to Piura city center
   static const LatLng _piuraCenter = LatLng(-5.0645, -80.4328);
-  
+
   // Piura region bounds (more generous to allow full exploration)
-  static final LatLngBounds _piuraBounds = LatLngBounds(
-    southwest: const LatLng(-5.5, -81.0),  // Southwest corner
-    northeast: const LatLng(-4.5, -80.0),  // Northeast corner
-  );
-  
+  // static final LatLngBounds _piuraBounds = LatLngBounds(
+  //   southwest: const LatLng(-5.5, -81.0),  // Southwest corner
+  //   northeast: const LatLng(-4.5, -80.0),  // Northeast corner
+  // );
+
   @override
   void initState() {
     super.initState();
@@ -154,17 +154,11 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
           decoration: BoxDecoration(
             color: AppColors.primary.withOpacity(0.05),
             borderRadius: BorderRadius.circular(8.0),
-            border: Border.all(
-              color: AppColors.primary.withOpacity(0.2),
-            ),
+            border: Border.all(color: AppColors.primary.withOpacity(0.2)),
           ),
           child: Row(
             children: [
-              Icon(
-                Icons.info_outline,
-                color: AppColors.primary,
-                size: 20.0,
-              ),
+              Icon(Icons.info_outline, color: AppColors.primary, size: 20.0),
               const SizedBox(width: 8.0),
               Expanded(
                 child: Text(
@@ -181,15 +175,13 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
           ),
         ),
         const SizedBox(height: 12.0),
-        
+
         // Map container with gesture controls
         Container(
           height: 400,
           decoration: BoxDecoration(
             border: Border.all(
-              color: widget.errorText != null 
-                  ? Colors.red 
-                  : AppColors.border,
+              color: widget.errorText != null ? Colors.red : AppColors.border,
               width: 1.5,
             ),
             borderRadius: BorderRadius.circular(12.0),
@@ -248,7 +240,7 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
                   // Map style
                   mapType: MapType.normal,
                 ),
-                
+
                 // Zoom control buttons (right side)
                 Positioned(
                   right: 12.0,
@@ -297,7 +289,7 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
                     ],
                   ),
                 ),
-                
+
                 // Quick action buttons (bottom right)
                 Positioned(
                   right: 12.0,
@@ -318,7 +310,7 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
                         ),
                       ),
                       const SizedBox(height: 8.0),
-                      
+
                       // Center on selected location button
                       if (_selectedLocation != null)
                         FloatingActionButton.small(
@@ -336,7 +328,7 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
                     ],
                   ),
                 ),
-                
+
                 // Instructions overlay (top left) - shows initially
                 if (_selectedLocation == null)
                   Positioned(
@@ -376,17 +368,13 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
             ),
           ),
         ),
-        
+
         // Error message
         if (widget.errorText != null) ...[
           const SizedBox(height: 8.0),
           Row(
             children: [
-              const Icon(
-                Icons.error_outline,
-                color: Colors.red,
-                size: 16.0,
-              ),
+              const Icon(Icons.error_outline, color: Colors.red, size: 16.0),
               const SizedBox(width: 6.0),
               Text(
                 widget.errorText!,
@@ -399,7 +387,7 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
             ],
           ),
         ],
-        
+
         // Coordinates display (for reference)
         if (_selectedLocation != null) ...[
           const SizedBox(height: 12.0),
@@ -412,11 +400,7 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
             ),
             child: Row(
               children: [
-                const Icon(
-                  Icons.pin_drop,
-                  color: Colors.red,
-                  size: 18.0,
-                ),
+                const Icon(Icons.pin_drop, color: Colors.red, size: 18.0),
                 const SizedBox(width: 8.0),
                 Expanded(
                   child: Column(
